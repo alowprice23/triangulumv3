@@ -1,0 +1,18 @@
+# Default parameters for the Triangulum system.
+# These values can be overridden by a user-provided configuration file.
+
+[pid]
+# Proportional-Integral-Derivative controller targets for the scheduler.
+target_backlog = 10
+target_utilization = 0.8
+
+[caps]
+# Hard caps for various system parameters.
+max_bugs = 100
+max_cycles_per_bug = 20
+max_retries_per_bug = 3
+
+[safe_mode]
+# Toggles for safe mode, which uses more conservative settings.
+enabled = false
+lexicographic_priority = true

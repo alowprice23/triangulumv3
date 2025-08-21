@@ -1,0 +1,16 @@
+# Language-specific rules for test discovery and dependency graphing.
+
+[python]
+test_patterns = ["test_*.py", "*_test.py"]
+test_command = "pytest"
+graph_ignore_modules = ["sys", "os", "re", "json", "collections"]
+
+[javascript]
+test_patterns = ["*.test.js", "*.spec.js", "*.test.ts", "*.spec.ts"]
+test_command = "npm test"
+graph_ignore_modules = ["react", "vue", "angular"]
+
+[java]
+test_patterns = ["*Test.java", "*Tests.java"]
+test_command = "mvn test"
+graph_ignore_modules = ["java.lang", "java.util"]

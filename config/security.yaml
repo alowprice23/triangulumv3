@@ -1,0 +1,26 @@
+# Security-related configurations for the Triangulum system.
+
+# Key management policy
+key_policy:
+  # The default key management system to use.
+  # Options: "local", "vault" (not implemented)
+  default_provider: "local"
+
+  # Local key storage settings
+  local:
+    # The directory where local keys are stored.
+    key_dir: ".triangulum/keys"
+
+# Filesystem sandbox rules
+path_sandbox:
+  # The default sandboxing mode.
+  # Options: "strict", "relaxed"
+  # strict: only allow access to files within the project root.
+  # relaxed: allow access to system libraries and tools.
+  default_mode: "strict"
+
+  # A list of allowed paths outside the project root in relaxed mode.
+  allowed_paths_relaxed:
+    - "/usr/bin/"
+    - "/bin/"
+    - "/usr/local/bin/"

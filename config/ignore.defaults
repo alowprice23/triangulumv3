@@ -1,0 +1,37 @@
+# Default ignore patterns for the Triangulum system.
+# These patterns are merged with .gitignore and .triangulumignore files.
+
+# Version control
+.git/
+.hg/
+.svn/
+
+# Build artifacts
+build/
+dist/
+target/
+out/
+
+# Log files
+*.log
+*.log.*
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+
+# Node.js dependencies
+node_modules/
+
+# IDE files
+.vscode/
+.idea/
