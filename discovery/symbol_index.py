@@ -1,7 +1,6 @@
-# discovery/symbol_index.py
-
 import ast
 from pathlib import Path
+import click
 
 def _get_imports(file_path: Path) -> list[str]:
     """
@@ -16,50 +15,28 @@ def _get_imports(file_path: Path) -> list[str]:
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 for alias in node.names:
-                    # e.g., import my.module
                     imports.add(alias.name)
             elif isinstance(node, ast.ImportFrom):
-                # e.g., from pathlib import Path -> "pathlib"
-                # e.g., from . import base -> ".base"
                 if node.level > 0:
                     prefix = '.' * node.level
                     if node.module:
                         imports.add(prefix + node.module)
-                    else: # from . import foo, bar
+                    else:
                         for alias in node.names:
                             imports.add(prefix + alias.name)
                 elif node.module:
-                    # from my.module import something -> "my.module.something"
-                    # This is a simplification. A full implementation would need
-                    # to handle wildcards, etc.
                     for alias in node.names:
                          if alias.name != '*':
                             imports.add(f"{node.module}.{alias.name}")
 
     except (SyntaxError, UnicodeDecodeError, OSError) as e:
-        # Ignore files that can't be parsed
-        print(f"Warning: Could not parse {file_path}: {e}")
+        # Print warnings to stderr so they don't pollute stdout
+        click.echo(f"Warning: Could not parse {file_path}: {e}", err=True)
     return sorted(list(imports))
 
 def build_symbol_index(repo_root: Path, files: list[str]) -> dict:
     """
     Builds a simplified symbol index for the given files, focusing only on imports.
-    This is a prerequisite for constructing the dependency graph.
-
-    The schema is:
-    {
-        "path/to/file.py": {
-            "imports": ["module1", "module2"]
-        },
-        ...
-    }
-
-    Args:
-        repo_root: The root path of the repository.
-        files: A list of file paths relative to the repo root.
-
-    Returns:
-        A dictionary representing the symbol index.
     """
     index = {}
     for file_str in files:

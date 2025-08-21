@@ -17,7 +17,7 @@ class Verifier:
             if full_path.exists():
                 contents[file_path] = full_path.read_text()
             else:
-                contents[file_path] = None # File will be newly created
+                contents[file_path] = None
         return contents
 
     def _restore_files(self, repo_root: Path, original_contents: Dict[str, str]):
@@ -28,9 +28,7 @@ class Verifier:
             if content is not None:
                 full_path.write_text(content)
             elif full_path.exists():
-                # If the file did not exist before, remove it
                 full_path.unlink()
-
 
     def verify_changes(
         self,
@@ -40,14 +38,6 @@ class Verifier:
     ) -> Dict[str, Any]:
         """
         Applies and verifies file changes.
-
-        Args:
-            analyst_report: The report from the Analyst, containing the modified files.
-            original_failing_tests: The list of tests that were failing.
-            repo_root: The root path of the repository.
-
-        Returns:
-            A dictionary containing the verification results.
         """
         modified_files = analyst_report.get("modified_files")
         if not modified_files:
@@ -57,35 +47,31 @@ class Verifier:
         original_contents = self._get_original_file_contents(repo_root, files_to_change)
 
         try:
-            # 1. Confirm tests are still failing (fail-first)
-            print("Verifier: Confirming tests are failing before applying changes...")
+            # 1. Confirm tests are still failing
             pre_patch_report = run_tests(repo_root, test_targets=original_failing_tests)
             if pre_patch_report.get("summary", {}).get("failed", 0) == 0:
-                self._restore_files(repo_root, original_contents)
                 return {"status": "failed", "message": "Tests were not failing before applying changes."}
 
-            # 2. Apply the changes by overwriting files
-            print("Verifier: Applying changes by overwriting files...")
+            # 2. Apply the changes
             for file_path, new_content in modified_files.items():
                 (repo_root / file_path).write_text(new_content)
 
-            # 3. Confirm fix (pass-second)
-            print("Verifier: Confirming fix after applying changes...")
+            # 3. Confirm fix
             post_patch_report = run_tests(repo_root, test_targets=original_failing_tests)
             if post_patch_report.get("summary", {}).get("failed", 0) > 0:
-                self._restore_files(repo_root, original_contents)
+                self._restore_files(repo_root, original_contents) # Restore on failure
                 return {"status": "failed", "message": "Tests are still failing after applying changes."}
 
             # 4. Check for regressions
-            print("Verifier: Checking for regressions...")
-            regression_report = run_tests(repo_root) # Run all tests
+            regression_report = run_tests(repo_root)
             if regression_report.get("summary", {}).get("failed", 0) > 0:
-                self._restore_files(repo_root, original_contents)
+                self._restore_files(repo_root, original_contents) # Restore on failure
                 return {"status": "failed", "message": "Changes introduced regressions.", "details": regression_report}
 
-            print("Verifier: Changes verified successfully!")
+            # 5. Success! Do not restore files.
             return {"status": "success", "message": "Changes are correct and introduce no regressions."}
 
-        finally:
-            # 5. Clean up
+        except Exception as e:
+            # Restore files on any unexpected exception
             self._restore_files(repo_root, original_contents)
+            raise e

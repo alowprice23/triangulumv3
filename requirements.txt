@@ -6,3 +6,5 @@ pyyaml
 networkx
 pytest-json-report
 requests
+openai
+click
