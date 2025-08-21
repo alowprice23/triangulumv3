@@ -6,21 +6,22 @@ from typing import Dict, Any
 from agents.llm_config import LLMConfig
 from agents.prompts import ANALYST_PROMPT
 from tooling.patch_bundle import create_patch_bundle
+from agents.memory import Memory
 
 class Analyst:
     """
-    The Analyst agent analyzes the bug report from the Observer and
-    proposes a patch.
+    The Analyst agent analyzes the bug report from the Observer, queries its
+    memory for similar past fixes, and proposes a patch.
     """
     def __init__(self):
         self.llm_config = LLMConfig()
         self.llm_client = self.llm_config.get_client()
+        self.memory = Memory()
 
     def _extract_code_from_llm(self, llm_response: str) -> str | None:
         """Extracts the code block from the LLM's markdown response."""
         match = re.search(r"```python\n(.*?)```", llm_response, re.DOTALL)
         if match:
-            # Strip leading/trailing whitespace to handle LLM formatting quirks
             return match.group(1).strip()
         return None
 
@@ -46,9 +47,21 @@ class Analyst:
         except FileNotFoundError as e:
             return {"status": "error", "message": f"Could not read file: {e}"}
 
+        # Query memory for similar past fixes
+        similar_fixes = self.memory.find_similar_fixes(
+            error_log=observer_report["logs"],
+            file_path=source_file_path_str
+        )
+        memory_context = "No similar fixes found in memory."
+        if similar_fixes:
+            memory_context = "Found the following similar past fixes:\n"
+            for fix in similar_fixes:
+                memory_context += f"- Patch for {fix['metadata']['source_file']}:\n{fix['metadata']['patch']}\n\n"
+
         prompt = ANALYST_PROMPT.format(
             failing_tests="\n".join(observer_report["failing_tests"]),
             logs=observer_report["logs"],
+            memory_context=memory_context,
             file_contents=(
                 f"--- {failing_test_path_str} ---\n{failing_test_content}\n\n"
                 f"--- {source_file_path_str} ---\n{source_file_content}"
@@ -76,5 +89,6 @@ class Analyst:
             "status": "success",
             "patch_bundle": patch_bundle,
             "modified_files": {source_file_path_str: modified_code},
-            "llm_rationale": llm_response
+            "llm_rationale": llm_response,
+            "original_error_log": observer_report["logs"] # Pass this through for memory
         }

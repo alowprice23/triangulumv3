@@ -1,6 +1,4 @@
 # This file contains the prompt templates for each agent role.
-# In a real system, these would be more sophisticated and likely managed
-# with a templating engine.
 
 OBSERVER_PROMPT = """\
 You are the Observer agent. Your goal is to reproduce a bug and gather initial context.
@@ -12,6 +10,7 @@ Please run the test suite and identify the failing tests and their output.
 
 ANALYST_PROMPT = """\
 You are the Analyst agent. Your goal is to analyze the bug and propose a fix.
+
 The Observer has provided the following report:
 ---
 Failing Tests:
@@ -20,10 +19,18 @@ Failing Tests:
 Logs:
 {logs}
 ---
+
+The Knowledge Base has found similar past fixes that may be relevant:
+---
+{memory_context}
+---
+
 Here is the content of the relevant files:
+---
 {file_contents}
 ---
-Based on this information, please provide a root cause analysis and a patch to fix the bug.
+
+Based on all of this information, please provide a root cause analysis and a patch to fix the bug.
 Your response should include a brief explanation followed by the code block for the fix.
 """
 

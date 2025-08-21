@@ -1,13 +1,19 @@
 from pathlib import Path
-from typing import Dict, Any, List
+import networkx as nx
+from typing import Dict, Any, List, Optional
 
 from tooling.test_runner import run_tests
+from tooling.repair import RepairTool
+from tooling.fuzz_runner import FuzzRunner
 
 class Verifier:
     """
     The Verifier agent applies a change and runs tests to verify the fix
-    and check for regressions.
+    and check for regressions. It can also use advanced tools like a
+    ripple effect analyzer and a fuzz tester.
     """
+    def __init__(self, dependency_graph: Optional[nx.DiGraph] = None):
+        self.graph = dependency_graph
 
     def _get_original_file_contents(self, repo_root: Path, file_paths: List[str]) -> Dict[str, str]:
         """Reads and stores the original content of files to be changed."""
@@ -36,9 +42,6 @@ class Verifier:
         original_failing_tests: List[str],
         repo_root: Path
     ) -> Dict[str, Any]:
-        """
-        Applies and verifies file changes.
-        """
         modified_files = analyst_report.get("modified_files")
         if not modified_files:
             return {"status": "failed", "message": "No modified files found in analyst report."}
@@ -56,22 +59,35 @@ class Verifier:
             for file_path, new_content in modified_files.items():
                 (repo_root / file_path).write_text(new_content)
 
+            # 2a. Analyze ripple effects
+            if self.graph:
+                repair_tool = RepairTool(self.graph)
+                effects = repair_tool.analyze_ripple_effect(files_to_change)
+                print(f"Verifier: Ripple effect analysis: {effects}")
+
             # 3. Confirm fix
             post_patch_report = run_tests(repo_root, test_targets=original_failing_tests)
             if post_patch_report.get("summary", {}).get("failed", 0) > 0:
-                self._restore_files(repo_root, original_contents) # Restore on failure
+                self._restore_files(repo_root, original_contents)
                 return {"status": "failed", "message": "Tests are still failing after applying changes."}
 
             # 4. Check for regressions
             regression_report = run_tests(repo_root)
             if regression_report.get("summary", {}).get("failed", 0) > 0:
-                self._restore_files(repo_root, original_contents) # Restore on failure
+                self._restore_files(repo_root, original_contents)
                 return {"status": "failed", "message": "Changes introduced regressions.", "details": regression_report}
 
-            # 5. Success! Do not restore files.
+            # 5. Run fuzz tests
+            fuzz_runner = FuzzRunner(repo_root)
+            for file_path in files_to_change:
+                # A real implementation would need to know which function to fuzz
+                fuzz_result = fuzz_runner.run_fuzz_test(file_path, "some_function")
+                if fuzz_result.get("status") != "success":
+                    self._restore_files(repo_root, original_contents)
+                    return {"status": "failed", "message": "Fuzz testing found issues.", "details": fuzz_result}
+
             return {"status": "success", "message": "Changes are correct and introduce no regressions."}
 
         except Exception as e:
-            # Restore files on any unexpected exception
             self._restore_files(repo_root, original_contents)
             raise e

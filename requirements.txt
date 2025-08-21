@@ -8,3 +8,5 @@ pytest-json-report
 requests
 openai
 click
+chromadb
+sentence-transformers
