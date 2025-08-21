@@ -3,3 +3,6 @@ pytest-asyncio
 pathspec
 tomli
 pyyaml
+networkx
+pytest-json-report
+requests
