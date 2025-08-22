@@ -2,6 +2,7 @@ from pathlib import Path
 import re
 import click
 from typing import Dict, Any
+import difflib
 
 from agents.llm_config import LLMConfig
 from agents.prompts import ANALYST_PROMPT
@@ -12,6 +13,7 @@ class Analyst:
     """
     The Analyst agent analyzes the bug report from the Observer, queries its
     memory for similar past fixes, and proposes a patch.
+    (README.md, §2, "Three Core Agent Archetypes")
     """
     def __init__(self):
         self.llm_config = LLMConfig()
@@ -88,7 +90,7 @@ class Analyst:
         return {
             "status": "success",
             "patch_bundle": patch_bundle,
-            "modified_files": {source_file_path_str: modified_code},
-            "llm_rationale": llm_response,
-            "original_error_log": observer_report["logs"] # Pass this through for memory
+            "rationale": llm_response,
+            "files_changed": [source_file_path_str],
+            "original_error_log": observer_report["logs"]
         }

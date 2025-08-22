@@ -62,25 +62,27 @@ class TestAdvancedAgents(unittest.TestCase):
     @patch('agents.coordinator.MetaTuner')
     def test_coordinator_uses_memory_and_tuner(self, mock_tuner_class, mock_memory_class, mock_verifier_class, mock_analyst_class, mock_observer_class):
         """Test that the Coordinator calls memory and tuner on success."""
-        mock_analyst_instance = MagicMock()
-        mock_memory_instance = MagicMock()
-        mock_tuner_instance = MagicMock()
-        # We need to mock the analyst instance that the coordinator creates
-        mock_analyst_class.return_value = mock_analyst_instance
-        mock_memory_class.return_value = mock_memory_instance
-        mock_tuner_class.return_value = mock_tuner_instance
+        mock_analyst_instance = mock_analyst_class.return_value
+        mock_memory_instance = mock_memory_class.return_value
+        mock_tuner_instance = mock_tuner_class.return_value
+        mock_observer_instance = mock_observer_class.return_value
+        mock_verifier_instance = mock_verifier_class.return_value
 
-        mock_observer_class.return_value.observe_bug.return_value = {"status": "success", "failing_tests": ["test.py"]}
+        mock_observer_instance.observe_bug.return_value = {"status": "success", "failing_tests": ["test.py"]}
         mock_analyst_instance.analyze_and_propose_patch.return_value = {
             "status": "success",
             "patch_bundle": {"file.py": "patch"},
-            "original_error_log": "error"
+            "original_error_log": "error",
+            "files_changed": ["file.py"]
         }
-        mock_verifier_class.return_value.verify_changes.return_value = {"status": "success"}
+        mock_verifier_instance.verify_changes.side_effect = [
+            {"status": "fail"},
+            {"status": "success"}
+        ]
 
         with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}):
             coordinator = Coordinator(repo_root=Path("."))
-            coordinator.run_debugging_cycle("a bug")
+            coordinator.run_debugging_cycle("a bug", initial_scope=["file.py", "test_file.py"])
 
         mock_memory_instance.add_successful_fix.assert_called_once_with(
             patch_content="patch",

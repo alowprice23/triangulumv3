@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Dict, Any, List
 
-from tooling.test_runner import run_tests
+import tooling.test_runner
 from tooling.compress import compress_text
 
 class Observer:
@@ -27,7 +27,7 @@ class Observer:
         """
         print("Observer: Running tests to reproduce the bug...")
 
-        report = run_tests(repo_root, test_targets=test_targets)
+        report = tooling.test_runner.run_tests(repo_root, test_targets=test_targets)
 
         if report.get("error"):
             print(f"Observer: Error running tests: {report['error']}")

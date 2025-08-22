@@ -1,7 +1,7 @@
 import click
 from pathlib import Path
 
-from cli.agentic_router import start_debugging_session
+from agents.coordinator import Coordinator
 
 @click.command()
 @click.option('--description', '-d', required=True, help='A description of the bug to be fixed.')
@@ -10,4 +10,12 @@ def run(description: str, path: Path):
     """
     Runs the full automated debugging cycle on a repository.
     """
-    start_debugging_session(repo_path=path, bug_description=description)
+    repo_root = path.resolve()
+    coordinator = Coordinator(repo_root=repo_root)
+    initial_scope = [str(p.resolve().relative_to(repo_root)) for p in path.glob("**/*.py")]
+    result = coordinator.run_debugging_cycle(description, initial_scope)
+
+    if result.get("status") == "success":
+        click.echo("Result: Bug Fixed Successfully!")
+    else:
+        click.echo(f"Result: Bug fix failed. Reason: {result.get('reason', 'Unknown')}")
