@@ -72,12 +72,16 @@ class TestCliIntegration(unittest.TestCase):
         self.assertIn("Supervisor has finished its run.", result.output)
 
     @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
+    @patch('runtime.supervisor.PIDController')
     @patch('runtime.supervisor.ParallelExecutor')
-    def test_run_command_e2e_simulation(self, mock_parallel_executor_class):
+    def test_run_command_e2e_simulation(self, mock_parallel_executor_class, mock_pid_controller_class):
         """
         Test the 'run' command end-to-end by simulating a successful bug fix
         through a mocked ParallelExecutor.
         """
+        # Ensure the PID controller allows spawning
+        mock_pid_controller_instance = mock_pid_controller_class.return_value
+        mock_pid_controller_instance.update.return_value = 1.0
         fixed_content = "# Buggy file\ndef add(a, b):\n    return a + b"
         mock_executor_instance = MagicMock()
         mock_parallel_executor_class.return_value = mock_executor_instance
@@ -95,7 +99,8 @@ class TestCliIntegration(unittest.TestCase):
             if not hasattr(check_side_effect, "called"):
                 check_side_effect.called = True
                 return []
-            return [("mock_bug_id", {"status": "success"})]
+            # Use a numeric ID to be compatible with recovery manager
+            return [(str(time.time_ns()), {"status": "success"})]
 
         mock_executor_instance.launch_session.side_effect = launch_side_effect
         mock_executor_instance.check_completed_sessions.side_effect = check_side_effect

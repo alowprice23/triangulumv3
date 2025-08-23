@@ -4,111 +4,100 @@ from pathlib import Path
 
 from runtime.supervisor import Supervisor
 from runtime.scheduler import BugTicket
+from storage.wal import LogEntryType
 
 class TestSupervisor(unittest.TestCase):
 
     def setUp(self):
         """Set up a mock environment for testing the Supervisor."""
         self.repo_root = Path("/fake/repo")
+        self.state_dir = Path("/tmp/fake_state") # Give a fake dir
 
-        # We patch the dependencies of the Supervisor so we can test it in isolation.
-        self.mock_allocator = MagicMock()
-        self.mock_executor = MagicMock()
-        self.mock_scheduler = MagicMock()
-        self.mock_pid_controller = MagicMock()
+        # We patch the storage and recovery components at a high level
+        # to prevent the Supervisor's __init__ from actually doing recovery.
+        self.mock_recovery_manager = MagicMock()
+        self.mock_recovery_manager.recover_state.return_value = {
+            "scheduler_tickets": [],
+            "active_sessions": {},
+        }
 
         # Patch the classes in the supervisor module
-        patcher_allocator = patch('runtime.supervisor.Allocator', return_value=self.mock_allocator)
-        patcher_executor = patch('runtime.supervisor.ParallelExecutor', return_value=self.mock_executor)
-        patcher_scheduler = patch('runtime.supervisor.Scheduler', return_value=self.mock_scheduler)
-        patcher_pid = patch('runtime.supervisor.PIDController', return_value=self.mock_pid_controller)
+        patcher_recovery = patch('runtime.supervisor.RecoveryManager', return_value=self.mock_recovery_manager)
+        self.patcher_executor = patch('runtime.supervisor.ParallelExecutor')
 
-        self.addCleanup(patcher_allocator.stop)
-        self.addCleanup(patcher_executor.stop)
-        self.addCleanup(patcher_scheduler.stop)
-        self.addCleanup(patcher_pid.stop)
+        # We don't need to patch WAL and SnapshotManager if we patch RecoveryManager,
+        # as it's the only thing that uses them in __init__.
+        self.addCleanup(patcher_recovery.stop)
+        self.addCleanup(self.patcher_executor.stop)
 
-        patcher_allocator.start()
-        patcher_executor.start()
-        patcher_scheduler.start()
-        patcher_pid.start()
+        patcher_recovery.start()
+        self.mock_executor_class = self.patcher_executor.start()
+        self.mock_executor_instance = self.mock_executor_class.return_value
 
-        self.supervisor = Supervisor(max_concurrent_sessions=3, repo_root=self.repo_root)
+        self.supervisor = Supervisor(max_concurrent_sessions=3, repo_root=self.repo_root, state_dir=self.state_dir)
+
+        # Also mock the WAL on the instance for tests that call log_event
+        self.supervisor.wal = MagicMock()
+
 
     def test_submit_bug(self):
-        """Test that submitting a bug adds a ticket to the scheduler."""
-        self.supervisor.submit_bug("Test bug", 5)
-        self.mock_scheduler.submit_ticket.assert_called_once()
-        call_args = self.mock_scheduler.submit_ticket.call_args[0]
-        self.assertIsInstance(call_args[0], BugTicket)
-        self.assertEqual(call_args[0].description, "Test bug")
+        """Test that submitting a bug adds a ticket to the scheduler and logs it."""
+        ticket = self.supervisor.submit_bug("Test bug", 5)
+        self.assertIsInstance(ticket, BugTicket)
+        self.supervisor.wal.log_event.assert_called_once()
+        self.assertEqual(len(self.supervisor.scheduler), 1)
 
     def test_tick_spawns_new_session_when_conditions_met(self):
         """Test that a new session is spawned when there is capacity and demand."""
-        # Arrange: PID says spawn, scheduler has a ticket, not at capacity
-        self.mock_pid_controller.update.return_value = 0.5
-        self.mock_scheduler.is_empty.return_value = False
-        self.mock_scheduler.get_next_ticket.return_value = BugTicket("1", 5, "desc")
-        self.mock_executor.get_active_session_count.return_value = 1
-        self.mock_executor.launch_session.return_value = True
+        self.supervisor.scheduler.submit_ticket(BugTicket("1", 5, "desc"))
+        with patch.object(self.supervisor.pid_controller, 'update', return_value=0.5):
+            self.mock_executor_instance.get_active_session_count.return_value = 1
+            self.mock_executor_instance.launch_session.return_value = True
 
-        # Act
-        self.supervisor.tick()
+            self.supervisor.tick()
 
-        # Assert
-        self.mock_executor.launch_session.assert_called_once()
+            self.mock_executor_instance.launch_session.assert_called_once()
+            self.supervisor.wal.log_event.assert_called_once_with(LogEntryType.SESSION_LAUNCHED, unittest.mock.ANY)
 
     def test_tick_does_not_spawn_when_at_capacity(self):
         """Test that a new session is not spawned when at max capacity."""
-        # Arrange: PID says spawn, scheduler has a ticket, but at capacity
-        self.mock_pid_controller.update.return_value = 0.5
-        self.mock_scheduler.is_empty.return_value = False
-        self.mock_executor.get_active_session_count.return_value = 3 # At capacity
+        self.supervisor.scheduler.submit_ticket(BugTicket("1", 5, "desc"))
+        with patch.object(self.supervisor.pid_controller, 'update', return_value=0.5):
+            self.mock_executor_instance.get_active_session_count.return_value = 3 # At capacity
 
-        # Act
-        self.supervisor.tick()
+            self.supervisor.tick()
 
-        # Assert
-        self.mock_executor.launch_session.assert_not_called()
+            self.mock_executor_instance.launch_session.assert_not_called()
 
     def test_tick_does_not_spawn_when_pid_is_low(self):
         """Test that a new session is not spawned when PID output is low."""
-        # Arrange: PID says wait, scheduler has a ticket, not at capacity
-        self.mock_pid_controller.update.return_value = 0.1 # Too low
-        self.mock_scheduler.is_empty.return_value = False
-        self.mock_executor.get_active_session_count.return_value = 1
+        self.supervisor.scheduler.submit_ticket(BugTicket("1", 5, "desc"))
+        with patch.object(self.supervisor.pid_controller, 'update', return_value=0.1): # Too low
+            self.mock_executor_instance.get_active_session_count.return_value = 1
 
-        # Act
-        self.supervisor.tick()
+            self.supervisor.tick()
 
-        # Assert
-        self.mock_executor.launch_session.assert_not_called()
+            self.mock_executor_instance.launch_session.assert_not_called()
 
     def test_tick_handles_completed_sessions(self):
         """Test that the supervisor checks for and handles completed sessions."""
-        # Arrange: Executor reports one completed session
-        self.mock_executor.check_completed_sessions.return_value = [
+        self.mock_executor_instance.check_completed_sessions.return_value = [
             ("BUG-001", {"status": "success"})
         ]
-        self.mock_pid_controller.update.return_value = 0.0 # Set a return value
+        with patch.object(self.supervisor.pid_controller, 'update', return_value=0.0):
+            self.supervisor.tick()
 
-        # Act
-        self.supervisor.tick()
-
-        # Assert
-        self.mock_executor.check_completed_sessions.assert_called_once()
+            self.mock_executor_instance.check_completed_sessions.assert_called_once()
+            self.supervisor.wal.log_event.assert_called_once_with(LogEntryType.SESSION_COMPLETED, unittest.mock.ANY)
 
     def test_run_loop_stops(self):
         """Test that the main run loop can be stopped."""
-        # Arrange
-        self.mock_pid_controller.update.return_value = 0.0 # Set a return value
+        self.supervisor.stop = MagicMock(wraps=self.supervisor.stop)
+        with patch.object(self.supervisor.pid_controller, 'update', return_value=0.0):
+            self.supervisor.run(duration_seconds=0.1)
 
-        # Act: Short duration to test the loop exit
-        self.supervisor.run(duration_seconds=0.1)
-
-        # Assert
-        self.assertFalse(self.supervisor.is_running)
-        self.mock_executor.shutdown.assert_called_once()
+            self.supervisor.stop.assert_called_once()
+            self.mock_executor_instance.shutdown.assert_called_once()
 
 if __name__ == '__main__':
     unittest.main()
