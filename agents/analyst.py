@@ -7,7 +7,7 @@ import difflib
 from agents.llm_config import LLMConfig
 from agents.prompts import ANALYST_PROMPT
 from tooling.patch_bundle import create_patch_bundle
-from agents.memory import Memory
+from kb.patch_motif_library import PatchMotifLibrary
 
 class Analyst:
     """
@@ -18,7 +18,7 @@ class Analyst:
     def __init__(self):
         self.llm_config = LLMConfig()
         self.llm_client = self.llm_config.get_client()
-        self.memory = Memory()
+        self.kb = PatchMotifLibrary()
 
     def _extract_code_from_llm(self, llm_response: str) -> str | None:
         """Extracts the code block from the LLM's markdown response."""
@@ -49,16 +49,20 @@ class Analyst:
         except FileNotFoundError as e:
             return {"status": "error", "message": f"Could not read file: {e}"}
 
-        # Query memory for similar past fixes
-        similar_fixes = self.memory.find_similar_fixes(
+        # Query the Knowledge Base for similar past fixes
+        click.echo("Analyst: Querying Knowledge Base for similar fixes...")
+        similar_motifs = self.kb.find_similar_motifs(
             error_log=observer_report["logs"],
             file_path=source_file_path_str
         )
-        memory_context = "No similar fixes found in memory."
-        if similar_fixes:
-            memory_context = "Found the following similar past fixes:\n"
-            for fix in similar_fixes:
-                memory_context += f"- Patch for {fix['metadata']['source_file']}:\n{fix['metadata']['patch']}\n\n"
+        memory_context = "No similar fixes found in the Knowledge Base."
+        if similar_motifs:
+            memory_context = "Found the following similar past fixes in the Knowledge Base:\n"
+            for motif in similar_motifs:
+                # The patch content is stored in the metadata of the motif
+                patch_info = motif['metadata'].get('patch', 'Patch content not available.')
+                source_file = motif['metadata'].get('source_file', 'Unknown source file.')
+                memory_context += f"- Patch for {source_file}:\n{patch_info}\n\n"
 
         prompt = ANALYST_PROMPT.format(
             failing_tests="\n".join(observer_report["failing_tests"]),

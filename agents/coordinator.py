@@ -2,10 +2,14 @@ from pathlib import Path
 from typing import Dict, Any
 from math import ceil, log2
 
+from pathlib import Path
+from typing import Dict, Any
+from math import ceil, log2
+
 from agents.observer import Observer
 from agents.analyst import Analyst
 from agents.verifier import Verifier
-from agents.memory import Memory
+from kb.patch_motif_library import PatchMotifLibrary
 from agents.meta_tuner import MetaTuner
 
 class Coordinator:
@@ -20,7 +24,7 @@ class Coordinator:
         self.observer = Observer()
         self.analyst = Analyst()
         self.verifier = Verifier()
-        self.memory = Memory()
+        self.kb = PatchMotifLibrary()
         self.meta_tuner = MetaTuner()
 
     def run_debugging_cycle(
@@ -88,8 +92,9 @@ class Coordinator:
                     if verifier_report_succeed.get("status") == "success":
                         final_result = {**verifier_report_succeed, **analyst_report}
                         patch_bundle = analyst_report.get("patch_bundle", {})
+                        # Save the successful fix to the Knowledge Base
                         for file_path, patch in patch_bundle.items():
-                            self.memory.add_successful_fix(
+                            self.kb.add_motif(
                                 patch_content=patch,
                                 source_file=file_path,
                                 error_log=analyst_report.get("original_error_log", "")
