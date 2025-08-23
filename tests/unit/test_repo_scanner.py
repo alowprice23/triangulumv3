@@ -1,42 +1,62 @@
-import pytest
+import unittest
 from pathlib import Path
+import tempfile
+import shutil
+
 from discovery.ignore_rules import IgnoreRules
-from discovery.repo_scanner import scan_repo
+from discovery.repo_scanner import RepoScanner
 
-@pytest.fixture
-def project_with_files(tmp_path):
-    d = tmp_path / "project"
-    d.mkdir()
-    (d / "file1.txt").write_text("hello")
-    (d / "file2.log").write_text("log")
-    sub = d / "subdir"
-    sub.mkdir()
-    (sub / "file3.py").write_text("print('hello')")
-    (d / ".gitignore").write_text("*.log")
-    return d
+class TestRepoScanner(unittest.TestCase):
 
-def test_scan_repo(project_with_files):
-    """Tests scanning a repository with some files and ignored files."""
-    ignore_rules = IgnoreRules(project_with_files)
-    files = scan_repo(project_with_files, ignore_rules)
+    def setUp(self):
+        self.test_dir = tempfile.mkdtemp()
+        self.project_root = Path(self.test_dir) / "project"
+        self.project_root.mkdir()
+        (self.project_root / "file1.txt").write_text("hello")
+        (self.project_root / "file2.log").write_text("log")
+        sub = self.project_root / "subdir"
+        sub.mkdir()
+        (sub / "file3.py").write_text("print('hello')")
+        (self.project_root / ".gitignore").write_text("*.log\n.git/")
 
-    file_names = {f.name for f in files}
+        # Create a dummy .git directory to test ignoring it
+        (self.project_root / ".git").mkdir()
+        (self.project_root / ".git" / "config").write_text("test")
 
-    assert "file1.txt" in file_names
-    assert "file3.py" in file_names
-    assert ".gitignore" in file_names
-    assert "file2.log" not in file_names
-    assert len(files) == 3
 
-def test_scan_repo_empty(tmp_path):
-    """Tests scanning an empty repository."""
-    d = tmp_path / "project"
-    d.mkdir()
-    ignore_rules = IgnoreRules(d)
-    files = scan_repo(d, ignore_rules)
-    assert not files
+    def tearDown(self):
+        shutil.rmtree(self.test_dir)
 
-def test_scan_repo_non_existent():
-    """Tests scanning a non-existent repository."""
-    with pytest.raises(ValueError):
-        scan_repo(Path("/non/existent/path"), IgnoreRules(Path("/non/existent/path")))
+    def test_scan_with_ignored_files(self):
+        """Tests scanning a repository with some files and ignored files."""
+        # Create ignore rules from a .gitignore file (if one were present)
+        # For this test, we'll manually create the rules
+        ignore_rules = IgnoreRules(additional_patterns=["*.log", ".git/"])
+        scanner = RepoScanner(ignore_rules)
+        manifest = scanner.scan(self.project_root)
+
+        paths = {item["path"] for item in manifest}
+
+        self.assertIn("file1.txt", paths)
+        self.assertIn(str(Path("subdir") / "file3.py"), paths)
+        self.assertIn(".gitignore", paths)
+        self.assertNotIn("file2.log", paths)
+        self.assertNotIn(str(Path(".git") / "config"), paths)
+        self.assertEqual(len(manifest), 3) # file1.txt, subdir/file3.py, .gitignore
+
+    def test_scan_empty_repo(self):
+        """Tests scanning an empty repository."""
+        empty_dir = self.project_root / "empty"
+        empty_dir.mkdir()
+        scanner = RepoScanner(IgnoreRules())
+        manifest = scanner.scan(empty_dir)
+        self.assertEqual(len(manifest), 0)
+
+    def test_scan_non_existent_repo(self):
+        """Tests scanning a non-existent repository."""
+        scanner = RepoScanner(IgnoreRules())
+        with self.assertRaises(ValueError):
+            scanner.scan(Path("/non/existent/path"))
+
+if __name__ == '__main__':
+    unittest.main()

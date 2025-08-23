@@ -56,3 +56,22 @@ class SourceTestMapper:
                 mapping[source_file] = test_file
 
         return mapping
+
+    def find_tests_for_source(self, source_file: str, all_files: List[str], repo_root: Path) -> List[str]:
+        """
+        Finds all relevant test files for a given source file.
+
+        Args:
+            source_file: The path to the source file.
+            all_files: A list of all file paths in the repository.
+            repo_root: The root path of the repository.
+
+        Returns:
+            A list of paths to test files related to the source file.
+        """
+        # For now, this is a simple implementation that relies on the
+        # one-to-one mapping. A more advanced version could use the
+        # dependency graph to find tests for related files as well.
+        mapping = self.locate_tests(all_files, repo_root)
+        test_file = mapping.get(source_file)
+        return [test_file] if test_file else []

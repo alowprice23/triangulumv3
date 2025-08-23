@@ -10,3 +10,5 @@ openai
 click
 chromadb
 sentence-transformers
+fastapi
+uvicorn[standard]

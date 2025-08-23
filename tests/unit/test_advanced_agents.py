@@ -31,7 +31,12 @@ class TestAdvancedAgents(unittest.TestCase):
         }
 
         with patch("pathlib.Path.read_text", return_value="file content"):
-            analyst.analyze_and_propose_patch(observer_report, repo_root)
+            analyst.analyze_and_propose_patch(
+                observer_report,
+                repo_root,
+                repo_manifest=[{"path": "tests/test_new_file.py"}], # Dummy manifest
+                symbol_index={} # Dummy index
+            )
 
         # Verify the KB was queried and its context used in the prompt
         mock_find_motifs.assert_called_once()
@@ -68,7 +73,11 @@ class TestAdvancedAgents(unittest.TestCase):
 
         with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}):
             coordinator = Coordinator(repo_root=Path("."))
-            coordinator.run_debugging_cycle("a bug", initial_scope=["file.py", "test_file.py"])
+            # Mock the scanner on the coordinator instance
+            coordinator.scanner = MagicMock()
+            coordinator.scanner.scan.return_value = [{"path": "file.py"}, {"path": "test_file.py"}]
+
+            coordinator.run_debugging_cycle("a bug")
 
         # Verify the successful fix was added to the Knowledge Base
         mock_kb_instance.add_motif.assert_called_once_with(

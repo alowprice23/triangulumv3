@@ -1,13 +1,16 @@
 from pathlib import Path
 import re
 import click
-from typing import Dict, Any
+from typing import Dict, Any, List
 import difflib
 
 from agents.llm_config import LLMConfig
+import networkx as nx
 from agents.prompts import ANALYST_PROMPT
 from tooling.patch_bundle import create_patch_bundle
 from kb.patch_motif_library import PatchMotifLibrary
+from discovery.dep_graph import build_dependency_graph
+from entropy.estimator import estimate_g_from_patch_size, _count_lines_of_code
 
 class Analyst:
     """
@@ -30,10 +33,12 @@ class Analyst:
     def analyze_and_propose_patch(
         self,
         observer_report: Dict[str, Any],
-        repo_root: Path
+        repo_root: Path,
+        repo_manifest: List[Dict[str, Any]],
+        symbol_index: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Analyzes the bug and generates a patch bundle and the full modified files.
+        Analyzes the bug, queries for context, and generates a patch.
         """
         if not observer_report.get("failing_tests"):
             return {"status": "no_op", "message": "No failing tests to analyze."}
@@ -49,6 +54,22 @@ class Analyst:
         except FileNotFoundError as e:
             return {"status": "error", "message": f"Could not read file: {e}"}
 
+        # Build dependency graph to find related files
+        click.echo("Analyst: Building dependency graph...")
+        all_files = [item["path"] for item in repo_manifest]
+        dep_graph = build_dependency_graph(symbol_index, all_files)
+
+        related_files_content = ""
+        if dep_graph.has_node(source_file_path_str):
+            # Get neighbors (both files that import this file, and files this file imports)
+            neighbors = list(nx.all_neighbors(dep_graph, source_file_path_str))
+            for neighbor_path_str in neighbors[:3]: # Limit to 3 neighbors for context
+                try:
+                    content = (repo_root / neighbor_path_str).read_text()
+                    related_files_content += f"--- {neighbor_path_str} ---\n{content}\n\n"
+                except FileNotFoundError:
+                    pass # Ignore if a neighbor file can't be read
+
         # Query the Knowledge Base for similar past fixes
         click.echo("Analyst: Querying Knowledge Base for similar fixes...")
         similar_motifs = self.kb.find_similar_motifs(
@@ -59,19 +80,21 @@ class Analyst:
         if similar_motifs:
             memory_context = "Found the following similar past fixes in the Knowledge Base:\n"
             for motif in similar_motifs:
-                # The patch content is stored in the metadata of the motif
                 patch_info = motif['metadata'].get('patch', 'Patch content not available.')
                 source_file = motif['metadata'].get('source_file', 'Unknown source file.')
                 memory_context += f"- Patch for {source_file}:\n{patch_info}\n\n"
+
+        file_contents = (
+            f"--- {failing_test_path_str} ---\n{failing_test_content}\n\n"
+            f"--- {source_file_path_str} ---\n{source_file_content}\n\n"
+            f"--- Related Files Context ---\n{related_files_content}"
+        )
 
         prompt = ANALYST_PROMPT.format(
             failing_tests="\n".join(observer_report["failing_tests"]),
             logs=observer_report["logs"],
             memory_context=memory_context,
-            file_contents=(
-                f"--- {failing_test_path_str} ---\n{failing_test_content}\n\n"
-                f"--- {source_file_path_str} ---\n{source_file_content}"
-            )
+            file_contents=file_contents
         )
 
         click.echo("Analyst: Calling LLM to generate a fix...")
@@ -91,10 +114,18 @@ class Analyst:
             modified_files={source_file_path_str: modified_code}
         )
 
+        # Estimate information gain (g) from the generated patch
+        patch_content = patch_bundle.get(source_file_path_str, "")
+        scope_loc = _count_lines_of_code(repo_root / source_file_path_str)
+        # A more advanced g would consider the whole scope's LOC
+        g = estimate_g_from_patch_size(patch_content, scope_loc)
+        click.echo(f"Analyst: Estimated information gain g = {g:.2f}")
+
         return {
             "status": "success",
             "patch_bundle": patch_bundle,
             "rationale": llm_response,
             "files_changed": [source_file_path_str],
-            "original_error_log": observer_report["logs"]
+            "original_error_log": observer_report["logs"],
+            "g_estimation": g
         }
