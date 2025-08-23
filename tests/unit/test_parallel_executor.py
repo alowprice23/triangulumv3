@@ -1,112 +1,98 @@
-import asyncio
-import pytest
-import dataclasses
-from unittest.mock import AsyncMock, MagicMock
+import unittest
+from unittest.mock import MagicMock, patch, ANY
+from pathlib import Path
+import time
+from concurrent.futures import Future
+
 from runtime.parallel_executor import ParallelExecutor
 from runtime.scheduler import BugTicket
-from runtime.state import Phase, BugState
+from runtime.allocator import Allocator
 
-# Mock the engine and coordinator for isolated testing
-class MockTriangulationEngine:
-    def __init__(self, bugs):
-        self.bugs = bugs
-        self._all_done = False
+class TestParallelExecutor(unittest.TestCase):
 
-    def execute_tick(self):
-        # Simulate progress
-        for i, bug in enumerate(self.bugs):
-            if bug.phase != Phase.DONE:
-                new_phase = Phase(bug.phase.value + 1)
-                self.bugs[i] = dataclasses.replace(bug, phase=new_phase)
-                if new_phase == Phase.DONE:
-                    self._all_done = True
-                break
+    def setUp(self):
+        self.mock_allocator = MagicMock(spec=Allocator)
+        # Mock the ThreadPoolExecutor to control thread execution manually
+        self.mock_thread_pool = MagicMock()
 
-    def all_done(self):
-        return self._all_done
+        patcher = patch('runtime.parallel_executor.ThreadPoolExecutor', return_value=self.mock_thread_pool)
+        self.addCleanup(patcher.stop)
+        patcher.start()
 
-class MockAgentCoordinator:
-    async def coordinate_tick(self, engine):
-        pass
+        self.executor = ParallelExecutor(max_workers=3, allocator=self.mock_allocator)
 
-@pytest.fixture
-def parallel_executor(monkeypatch):
-    # Patch the classes in the parallel_executor module
-    monkeypatch.setattr('runtime.parallel_executor.TriangulationEngine', MockTriangulationEngine)
-    monkeypatch.setattr('runtime.parallel_executor.AgentCoordinator', MockAgentCoordinator)
-    return ParallelExecutor()
+    def test_launch_session_success(self):
+        """Test that a session is launched successfully when resources are available."""
+        self.mock_allocator.allocate.return_value = True
+        ticket = BugTicket("BUG-001", 5, "Test bug")
+        repo_root = Path("/fake/repo")
 
-import time
+        # Mock the Coordinator class within the executor's scope
+        with patch('runtime.parallel_executor.Coordinator') as mock_coordinator_class:
+            mock_coordinator_instance = MagicMock()
+            mock_coordinator_class.return_value = mock_coordinator_instance
 
-async def wait_for_condition(condition, timeout=1.0):
-    start_time = time.time()
-    while time.time() - start_time < timeout:
-        if condition():
-            return
-        await asyncio.sleep(0.01)
-    raise TimeoutError("Condition not met in time")
+            launched = self.executor.launch_session(ticket, repo_root)
 
-@pytest.mark.asyncio
-async def test_parallel_executor_submit_and_launch(parallel_executor):
-    """Test submitting tickets and launching bug-fixing processes."""
-    tickets = [
-        BugTicket(bug_id=f"BUG-00{i}", severity=3, description=f"Test bug {i}")
-        for i in range(5)
-    ]
-    for ticket in tickets:
-        parallel_executor.submit_ticket(ticket)
+            self.assertTrue(launched)
+            self.mock_allocator.allocate.assert_called_once_with("BUG-001")
+            mock_coordinator_class.assert_called_once_with(repo_root=repo_root)
+            self.mock_thread_pool.submit.assert_called_once_with(
+                mock_coordinator_instance.run_debugging_cycle,
+                "Test bug",
+                initial_scope=ANY
+            )
+            self.assertEqual(self.executor.get_active_session_count(), 1)
 
-    # Run the executor for a short time to allow bugs to be launched
-    task = asyncio.create_task(parallel_executor.run(tick_interval=0.01))
+    def test_launch_session_fails_when_at_capacity(self):
+        """Test that a session is not launched when the executor is at capacity."""
+        # Manually set the number of active sessions to be at capacity
+        self.executor._active_sessions = {"1": MagicMock(), "2": MagicMock(), "3": MagicMock()}
 
-    await wait_for_condition(lambda: len(parallel_executor._active_bugs) == 3)
+        ticket = BugTicket("BUG-004", 5, "Another bug")
+        repo_root = Path("/fake/repo")
 
-    # Should have launched up to MAX_CONCURRENT_BUGS
-    assert len(parallel_executor._active_bugs) == parallel_executor.MAX_CONCURRENT_BUGS
+        launched = self.executor.launch_session(ticket, repo_root)
 
-    task.cancel()
-    # The scheduler might have picked up more tasks than active bugs
-    # This assertion is not reliable.
-    # assert len(parallel_executor._scheduler) == 5 - parallel_executor.MAX_CONCURRENT_BUGS
-    assert len(parallel_executor._backlog) == 0
+        self.assertFalse(launched)
+        self.mock_allocator.allocate.assert_not_called()
+        self.mock_thread_pool.submit.assert_not_called()
 
+    def test_launch_session_fails_when_no_agents(self):
+        """Test that a session is not launched when the allocator fails."""
+        self.mock_allocator.allocate.return_value = False
+        ticket = BugTicket("BUG-001", 5, "Test bug")
+        repo_root = Path("/fake/repo")
 
-@pytest.mark.asyncio
-async def test_parallel_executor_bug_completion(parallel_executor):
-    """Test that completed bugs are removed and agents are released."""
-    ticket = BugTicket(bug_id="BUG-001", severity=3, description="Test bug")
-    parallel_executor.submit_ticket(ticket)
+        launched = self.executor.launch_session(ticket, repo_root)
 
-    # Run the executor until the bug is completed
-    task = asyncio.create_task(parallel_executor.run(tick_interval=0.01))
+        self.assertFalse(launched)
+        self.mock_allocator.allocate.assert_called_once_with("BUG-001")
+        self.mock_thread_pool.submit.assert_not_called()
 
-    # Wait for the bug to be launched
-    await wait_for_condition(lambda: len(parallel_executor._active_bugs) == 1)
-    assert len(parallel_executor._active_bugs) == 1
+    def test_check_completed_sessions(self):
+        """Test that completed sessions are correctly identified and processed."""
+        # Create a mock session with a future that is 'done'
+        done_future = Future()
+        done_future.set_result({"status": "success"})
 
-    # Wait for the bug to complete
-    await wait_for_condition(lambda: len(parallel_executor._active_bugs) == 0, timeout=2.0)
+        mock_session = MagicMock()
+        mock_session.bug_id = "BUG-001"
+        mock_session.future = done_future
 
-    task.cancel()
+        self.executor._active_sessions = {"BUG-001": mock_session}
 
-    assert len(parallel_executor._active_bugs) == 0
-    assert parallel_executor._allocator.free_agents == 9
+        completed = self.executor.check_completed_sessions()
 
-@pytest.mark.asyncio
-async def test_parallel_executor_respects_capacity(parallel_executor):
-    """Test that the executor does not exceed the maximum number of concurrent bugs."""
-    tickets = [
-        BugTicket(bug_id=f"BUG-00{i}", severity=3, description=f"Test bug {i}")
-        for i in range(10)
-    ]
-    for ticket in tickets:
-        parallel_executor.submit_ticket(ticket)
+        self.assertEqual(len(completed), 1)
+        self.assertEqual(completed[0], ("BUG-001", {"status": "success"}))
+        self.mock_allocator.release.assert_called_once_with("BUG-001")
+        self.assertEqual(self.executor.get_active_session_count(), 0)
 
-    task = asyncio.create_task(parallel_executor.run(tick_interval=0.01))
+    def test_shutdown_is_called(self):
+        """Test that the executor's shutdown method calls the thread pool's shutdown."""
+        self.executor.shutdown()
+        self.mock_thread_pool.shutdown.assert_called_once_with(wait=True)
 
-    # Let it run for a bit
-    for _ in range(10):
-        await asyncio.sleep(0.05)
-        assert len(parallel_executor._active_bugs) <= parallel_executor.MAX_CONCURRENT_BUGS
-
-    task.cancel()
+if __name__ == '__main__':
+    unittest.main()

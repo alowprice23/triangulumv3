@@ -1,111 +1,91 @@
-import asyncio
-from collections import deque
+from concurrent.futures import ThreadPoolExecutor, Future
+from typing import Dict, List, Tuple
+from pathlib import Path
 from dataclasses import dataclass
-from typing import Deque, Dict, List
 
+from agents.coordinator import Coordinator
 from runtime.allocator import Allocator
-from runtime.scheduler import BugTicket, Scheduler
-from runtime.state import BugState, Phase
-
-# Placeholder for the TriangulationEngine. In a complete implementation,
-# this would be imported from its own module (e.g., runtime.engine).
-class TriangulationEngine:
-    def __init__(self, bugs: List[BugState]):
-        self.bugs = bugs
-
-    def execute_tick(self):
-        # This would call the state transition logic.
-        # For now, we'll simulate a bug's lifecycle.
-        bug = self.bugs[0]
-        if bug.phase == Phase.WAIT:
-            bug.phase = Phase.REPRO
-        elif bug.phase == Phase.REPRO:
-            bug.phase = Phase.PATCH
-        elif bug.phase == Phase.PATCH:
-            bug.phase = Phase.VERIFY
-        elif bug.phase == Phase.VERIFY:
-            bug.phase = Phase.DONE
-
-    def all_done(self) -> bool:
-        return all(b.phase in {Phase.DONE, Phase.ESCALATE} for b in self.bugs)
-
-# Placeholder for the AgentCoordinator.
-class AgentCoordinator:
-    async def coordinate_tick(self, engine: TriangulationEngine):
-        # In a real implementation, this would orchestrate the O-A-V agents.
-        await asyncio.sleep(0.01)
-
+from runtime.scheduler import BugTicket
 
 @dataclass
-class BugContext:
-    """Holds the context for a single, actively running bug."""
-    engine: TriangulationEngine
-    coordinator: AgentCoordinator
+class Session:
+    """Holds the context for a single, actively running bug-fixing session."""
+    bug_id: str
+    future: Future
 
 class ParallelExecutor:
     """
-    Manages the concurrent execution of up to 3 bug-fixing processes.
+    Manages the concurrent execution of multiple bug-fixing Coordinator sessions.
     """
-    MAX_CONCURRENT_BUGS = 3
+    def __init__(self, max_workers: int, allocator: Allocator):
+        self.max_workers = max_workers
+        self._allocator = allocator
+        self._executor = ThreadPoolExecutor(max_workers=self.max_workers)
+        self._active_sessions: Dict[str, Session] = {}
 
-    def __init__(self):
-        self._scheduler = Scheduler()
-        self._allocator = Allocator()
-        self._active_bugs: Dict[str, BugContext] = {}
-        self._backlog: Deque[BugTicket] = deque()
+    def launch_session(self, ticket: BugTicket, repo_root: Path) -> bool:
+        """
+        Launches a new coordinator session in a separate thread if resources are available.
 
-    def submit_ticket(self, ticket: BugTicket):
-        """Adds a bug ticket to the backlog."""
-        self._backlog.append(ticket)
+        Returns:
+            bool: True if the session was launched, False otherwise.
+        """
+        if len(self._active_sessions) >= self.max_workers:
+            return False # Cannot launch, at capacity
 
-    async def run(self, tick_interval: float = 0.1):
-        """The main execution loop."""
-        while True:
-            self._schedule_backlog()
-            self._launch_new_bugs()
-            await self._run_active_bugs_tick()
-            await asyncio.sleep(tick_interval)
+        if not self._allocator.allocate(ticket.bug_id):
+            return False # Cannot launch, no agents available
 
-    def _schedule_backlog(self):
-        """Moves tickets from the backlog to the prioritized scheduler."""
-        while self._backlog:
-            self._scheduler.submit_ticket(self._backlog.popleft())
+        print(f"Executor: Launching session for bug {ticket.bug_id}")
+        coordinator = Coordinator(repo_root=repo_root)
 
-    def _launch_new_bugs(self):
-        """Launches new bug-fixing processes if there is capacity."""
-        while len(self._active_bugs) < self.MAX_CONCURRENT_BUGS:
-            next_ticket = self._scheduler.get_next_ticket()
-            if not next_ticket:
-                break
+        # The coordinator's main loop is run in a separate thread
+        future = self._executor.submit(
+            coordinator.run_debugging_cycle,
+            ticket.description,
+            # For now, we assume the initial scope is the whole repo
+            initial_scope=[str(p) for p in repo_root.glob("**/*.py")]
+        )
 
-            if self._allocator.allocate(next_ticket.bug_id):
-                bug_state = BugState(
-                    bug_id=next_ticket.bug_id,
-                    phase=Phase.WAIT,
-                    timer=0,
-                    attempts=0,
-                )
-                engine = TriangulationEngine(bugs=[bug_state])
-                coordinator = AgentCoordinator()
-                self._active_bugs[next_ticket.bug_id] = BugContext(engine, coordinator)
-            else:
-                # If allocation fails, we should put the ticket back in the scheduler
-                self._scheduler.submit_ticket(next_ticket)
-                break
+        session = Session(bug_id=ticket.bug_id, future=future)
+        self._active_sessions[ticket.bug_id] = session
+        return True
 
-    async def _run_active_bugs_tick(self):
-        """Runs one tick for each active bug-fixing process."""
-        if not self._active_bugs:
-            return
+    def check_completed_sessions(self) -> List[Tuple[str, dict]]:
+        """
+        Checks for completed sessions, cleans them up, and returns their results.
 
-        completed_bug_ids = []
-        for bug_id, context in self._active_bugs.items():
-            context.engine.execute_tick()
-            await context.coordinator.coordinate_tick(context.engine)
+        Returns:
+            A list of tuples, where each tuple contains the bug_id and the
+            result dictionary from a completed coordinator session.
+        """
+        completed = []
+        finished_bug_ids = []
 
-            if context.engine.all_done():
-                completed_bug_ids.append(bug_id)
+        for bug_id, session in self._active_sessions.items():
+            if session.future.done():
+                try:
+                    result = session.future.result()
+                    print(f"Executor: Session for bug {bug_id} completed.")
+                    completed.append((bug_id, result))
+                except Exception as e:
+                    print(f"Executor: Session for bug {bug_id} failed with exception: {e}")
+                    completed.append((bug_id, {"status": "failed", "reason": str(e)}))
 
-        for bug_id in completed_bug_ids:
-            del self._active_bugs[bug_id]
-            self._allocator.release(bug_id)
+                finished_bug_ids.append(bug_id)
+                self._allocator.release(bug_id)
+
+        # Remove finished sessions from the active dictionary
+        for bug_id in finished_bug_ids:
+            del self._active_sessions[bug_id]
+
+        return completed
+
+    def get_active_session_count(self) -> int:
+        """Returns the number of currently active sessions."""
+        return len(self._active_sessions)
+
+    def shutdown(self):
+        """Shuts down the thread pool executor."""
+        print("Executor: Shutting down...")
+        self._executor.shutdown(wait=True)
