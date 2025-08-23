@@ -10,6 +10,7 @@ from tooling.repair import RepairTool
 from tooling.fuzz_runner import FuzzRunner
 from tooling.patch_bundle import apply_patch_bundle
 from security.scanner import scan_for_malicious_code
+from adapters.base_adapter import LanguageAdapter
 import runtime.metrics as metrics
 import hashlib
 
@@ -19,8 +20,8 @@ class Verifier:
     and check for regressions. All operations are performed in a temporary
     sandboxed copy of the repository.
     """
-    def __init__(self, dependency_graph: Optional[nx.DiGraph] = None):
-        self.graph = dependency_graph
+    def __init__(self, adapter: LanguageAdapter):
+        self.adapter = adapter
 
     def verify_changes(
         self,
@@ -55,7 +56,11 @@ class Verifier:
 
             # Run tests within the sandbox
             metrics.VERIFIER_CYCLES.labels(patch_hash=patch_hash).inc()
-            report = tooling.test_runner.run_tests(sandbox_dir, test_targets=original_failing_tests)
+
+            # Use the adapter to get the correct test command
+            test_command = self.adapter.get_test_command(original_failing_tests)
+            report = tooling.test_runner.run_test_command(sandbox_dir, test_command)
+
             failed_count = report.get("summary", {}).get("failed", 0)
 
             # Check against expectation

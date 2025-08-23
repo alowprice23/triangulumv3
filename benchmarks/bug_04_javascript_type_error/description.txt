@@ -1,0 +1,1 @@
+The `createGreeting` function in `index.js` throws a `TypeError: name.toUpperCase is not a function` when a number is passed as an argument. The function should be modified to handle numeric inputs by converting them to a string before calling `toUpperCase`. The test `should not throw an error for a numeric input` is failing.

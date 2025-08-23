@@ -12,6 +12,8 @@ from agents.verifier import Verifier
 from kb.patch_motif_library import PatchMotifLibrary
 from agents.strategy_guide import StrategyGuide
 from discovery.code_graph import CodeGraph, CodeGraphBuilder
+from discovery.language_probe import probe_language
+from adapters.router import get_language_adapter
 from entropy.estimator import estimate_initial_entropy, calculate_n_star
 from runtime.human_hub import request_human_feedback
 from runtime.performance_logger import PerformanceLogger, PerformanceRecord
@@ -34,10 +36,9 @@ class Coordinator:
         self.analyst = Analyst()
         # The Verifier can be initialized with a dependency graph to perform
         # more targeted regression testing in the future.
-        self.verifier = Verifier()
+        self.verifier = None # Will be initialized once the language is known
         self.kb = PatchMotifLibrary()
         self.strategy_guide = StrategyGuide(log_path=Path("state/performance_log.jsonl"))
-        self.code_graph_builder = CodeGraphBuilder(repo_root=self.repo_root)
         self.performance_logger = PerformanceLogger(log_path=Path("state/performance_log.jsonl"))
 
     def run_debugging_cycle(
@@ -56,12 +57,27 @@ class Coordinator:
         # 1. Build the Code Graph if it wasn't provided (for backward compatibility)
         if code_graph is None:
             logger.info("Coordinator: No pre-built code graph provided. Building now...")
-            code_graph = self.code_graph_builder.build()
+
+            # 1a. Probe for language and get adapter
+            all_files = [p for p in self.repo_root.rglob('*') if p.is_file()]
+            language = probe_language(all_files)
+            if language == "Unknown":
+                return {"status": "aborted", "reason": "Could not determine the project's primary language."}
+            logger.info(f"Detected language: {language}")
+            adapter = get_language_adapter(language)
+
+            # 1b. Build code graph using the detected language adapter
+            code_graph_builder = CodeGraphBuilder(repo_root=self.repo_root, adapter=adapter)
+            code_graph = code_graph_builder.build()
+
             if not code_graph.manifest:
                 return {"status": "aborted", "reason": "Repository is empty or all files are ignored."}
             logger.info(f"Coordinator: Code graph built. Found {len(code_graph.manifest)} files.")
+            self.verifier = Verifier(adapter)
         else:
             logger.info("Coordinator: Using pre-built code graph.")
+            adapter = get_language_adapter(code_graph.language)
+            self.verifier = Verifier(adapter)
 
         # The scope for agents is now derived from the code graph
         scope = [item.path for item in code_graph.manifest]
