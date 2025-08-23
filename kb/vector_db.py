@@ -1,13 +1,30 @@
 import chromadb
 from typing import List, Dict, Any
 
+from pathlib import Path
+from typing import Optional
+
 class VectorDBClient:
     """
-    A simple in-memory vector database client using ChromaDB.
+    A vector database client using ChromaDB, supporting both in-memory and
+    persistent storage.
     """
-    def __init__(self, collection_name: str = "patch_motifs"):
-        # Using an in-memory instance of ChromaDB
-        self.client = chromadb.Client()
+    def __init__(self, collection_name: str = "patch_motifs", path: Optional[Path] = None):
+        """
+        Initializes the ChromaDB client.
+
+        Args:
+            collection_name: The name of the collection to use.
+            path: If provided, a persistent client will be created at this path.
+                  If None, an ephemeral in-memory client will be used.
+        """
+        if path:
+            # Persistent client
+            self.client = chromadb.PersistentClient(path=str(path))
+        else:
+            # Ephemeral in-memory client
+            self.client = chromadb.Client()
+
         try:
             self.collection = self.client.get_or_create_collection(name=collection_name)
         except Exception as e:

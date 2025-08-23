@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount the application code for live-reloading during development
+      - .:/app
+      # Mount named volumes for persistent data
+      - app-state:/app/state
+      - app-kb:/app/kb_db
+    environment:
+      # Ensure python prints output immediately to the console
+      - PYTHONUNBUFFERED=1
+      # Path for the persistent Knowledge Base database
+      - KB_PATH=/app/kb_db
+
+volumes:
+  app-state:
+  app-kb:

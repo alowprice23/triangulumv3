@@ -15,15 +15,21 @@ DEFAULT_IGNORE_PATTERNS = [
     "node_modules/",
 ]
 
+from typing import Optional
+
 class IgnoreRules:
     """
     Manages ignore rules from .gitignore, .triangulumignore, and default patterns,
     using the `pathspec` library for robust .gitignore-style matching.
     """
-    def __init__(self, project_root: Path):
+    def __init__(self, additional_patterns: List[str] = [], project_root: Optional[Path] = None):
         self.project_root = project_root
         self.patterns: Set[str] = set(DEFAULT_IGNORE_PATTERNS)
-        self._load_ignore_files()
+        self.patterns.update(additional_patterns)
+
+        if self.project_root:
+            self._load_ignore_files()
+
         self.spec = pathspec.PathSpec.from_lines(
             pathspec.GitIgnorePattern, self.get_patterns()
         )
@@ -31,13 +37,14 @@ class IgnoreRules:
     def _load_ignore_files(self):
         """Loads ignore patterns from .gitignore and .triangulumignore."""
         for ignore_file in [".gitignore", ".triangulumignore"]:
-            ignore_path = self.project_root / ignore_file
-            if ignore_path.is_file():
-                with open(ignore_path, "r", encoding="utf-8") as f:
-                    for line in f:
-                        line = line.strip()
-                        if line and not line.startswith("#"):
-                            self.patterns.add(line)
+            if self.project_root:
+                ignore_path = self.project_root / ignore_file
+                if ignore_path.is_file():
+                    with open(ignore_path, "r", encoding="utf-8") as f:
+                        for line in f:
+                            line = line.strip()
+                            if line and not line.startswith("#"):
+                                self.patterns.add(line)
 
     def is_ignored(self, path: Path) -> bool:
         """

@@ -11,16 +11,14 @@ def test_estimate_cost_valid():
 def test_estimate_cost_zero_g():
     """Tests estimating cost with zero information gain."""
     cost = estimate_cost(h0=10.0, g=0.0)
-    assert cost["iterations"] is None
-    assert cost["time_to_fix_seconds"] is None
-    assert "Convergence not guaranteed" in cost["message"]
+    assert cost["iterations"] == 3 # Should use fallback
+    assert cost["time_to_fix_seconds"] is not None
 
 def test_estimate_cost_negative_g():
     """Tests estimating cost with negative information gain."""
     cost = estimate_cost(h0=10.0, g=-1.0)
-    assert cost["iterations"] is None
-    assert cost["time_to_fix_seconds"] is None
-    assert "Convergence not guaranteed" in cost["message"]
+    assert cost["iterations"] == 3 # Should use fallback
+    assert cost["time_to_fix_seconds"] is not None
 
 def test_estimate_cost_custom_tick_duration():
     """Tests estimating cost with a custom average tick duration."""

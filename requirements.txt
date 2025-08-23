@@ -10,3 +10,8 @@ openai
 click
 chromadb
 sentence-transformers
+fastapi
+uvicorn[standard]
+prometheus-client
+ollama
+numpy

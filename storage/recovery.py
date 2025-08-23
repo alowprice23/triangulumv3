@@ -1,37 +1,96 @@
-from pathlib import Path
-from storage.wal import WriteAheadLog
+import logging
+from typing import Dict, Any
+
+from storage.wal import WriteAheadLog, LogEntryType
 from storage.snapshot import SnapshotManager
-import pickle
+
+logger = logging.getLogger(__name__)
 
 class RecoveryManager:
     """
     Manages the recovery of the system's state from the WAL and snapshots.
     """
     def __init__(self, wal: WriteAheadLog, snapshot_manager: SnapshotManager):
-        self.wal = wal
-        self.snapshot_manager = snapshot_manager
+        self._wal = wal
+        self._snapshot_manager = snapshot_manager
 
-    def recover_state(self) -> dict:
+    def recover_state(self) -> Dict[str, Any]:
         """
         Recovers the system's state by restoring the latest snapshot
-        and replaying the WAL entries.
+        and replaying any subsequent WAL entries.
+
+        Returns:
+            The recovered state dictionary. If no snapshot or WAL is found,
+            returns a default initial state.
         """
-        latest_snapshot_id = self.snapshot_manager.get_latest_snapshot_id()
+        logger.info("RecoveryManager: Starting state recovery...")
+        snapshot_id, state = self._snapshot_manager.restore_latest_snapshot()
 
-        if latest_snapshot_id:
-            state = self.snapshot_manager.restore_snapshot(latest_snapshot_id)
-            if state is None:
-                state = {}
+        if state:
+            logger.info(f"RecoveryManager: Restored snapshot {snapshot_id}.")
+            last_event_timestamp = int(snapshot_id)
         else:
-            state = {}
+            logger.info("RecoveryManager: No valid snapshot found. Starting from empty state.")
+            state = self._get_initial_state()
+            last_event_timestamp = 0
 
-        # Replay the WAL entries to bring the state up to date.
-        # The logic for applying the WAL entries to the state would be
-        # specific to the structure of the state and the log entries.
-        # This is a placeholder for that logic.
-        for entry in self.wal.read_log():
-            # In a real implementation, we would deserialize the entry
-            # and apply the change to the state.
-            pass
+        logger.info("RecoveryManager: Replaying events from Write-Ahead Log...")
+        events_replayed = 0
+        for event in self._wal.read_events():
+            # The bug_id is a timestamp we can use for ordering
+            event_timestamp = self._get_event_timestamp(event)
 
+            if event_timestamp > last_event_timestamp:
+                self._apply_event(state, event)
+                events_replayed += 1
+
+        logger.info(f"RecoveryManager: Replayed {events_replayed} events. Recovery complete.")
         return state
+
+    def _get_event_timestamp(self, event: Dict[str, Any]) -> int:
+        """
+        Extracts a timestamp from a log event to ensure ordering.
+        Returns 0 if the bug_id is not a valid timestamp.
+        """
+        try:
+            # We'll use the bug_id, which is a timestamp, as the event's timestamp.
+            return int(float(event["payload"]["bug_id"]))
+        except (ValueError, KeyError):
+            return 0
+
+    def _apply_event(self, state: Dict[str, Any], event: Dict[str, Any]):
+        """Applies a single log event to modify the current state."""
+        entry_type = event.get("type")
+        payload = event.get("payload", {})
+        bug_id = payload.get("bug_id")
+
+        if entry_type == LogEntryType.BUG_SUBMITTED:
+            # Add the ticket to the scheduler's list
+            # The list is a list of dicts, not BugTicket objects, for JSON serialization
+            state["scheduler_tickets"].append(payload)
+            logger.debug(f"  Replaying: BUG_SUBMITTED for {bug_id}")
+
+        elif entry_type == LogEntryType.SESSION_LAUNCHED:
+            # Move ticket from scheduler to active sessions
+            state["scheduler_tickets"] = [
+                t for t in state["scheduler_tickets"] if t["bug_id"] != bug_id
+            ]
+            state["active_sessions"][bug_id] = payload
+            logger.debug(f"  Replaying: SESSION_LAUNCHED for {bug_id}")
+
+        elif entry_type == LogEntryType.SESSION_COMPLETED:
+            # Remove from active sessions OR scheduler queue
+            if bug_id in state["active_sessions"]:
+                del state["active_sessions"][bug_id]
+            else:
+                state["scheduler_tickets"] = [
+                    t for t in state["scheduler_tickets"] if t["bug_id"] != bug_id
+                ]
+            logger.debug(f"  Replaying: SESSION_COMPLETED for {bug_id}")
+
+    def _get_initial_state(self) -> Dict[str, Any]:
+        """Returns the default initial state for the supervisor."""
+        return {
+            "scheduler_tickets": [],
+            "active_sessions": {},
+        }

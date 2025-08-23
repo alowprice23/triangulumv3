@@ -1,4 +1,6 @@
 import hashlib
+import os
+from pathlib import Path
 from typing import List, Dict, Any
 
 from kb.vector_db import VectorDBClient
@@ -10,7 +12,9 @@ class PatchMotifLibrary:
     for similarity.
     """
     def __init__(self):
-        self.db_client = VectorDBClient(collection_name="patch_motifs")
+        kb_path_str = os.environ.get("KB_PATH")
+        kb_path = Path(kb_path_str) if kb_path_str else None
+        self.db_client = VectorDBClient(collection_name="patch_motifs", path=kb_path)
 
     def _create_document_from_patch(
         self,

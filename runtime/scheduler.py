@@ -1,7 +1,9 @@
 import time
 import heapq
 from dataclasses import dataclass, field
-from typing import List, Any
+from typing import List, Any, Optional
+
+from discovery.code_graph import CodeGraph
 
 # Constants for the priority scoring function, as discussed in our chat history.
 # These values are chosen to satisfy the starvation-freedom constraint.
@@ -23,6 +25,7 @@ class BugTicket:
     severity: int
     description: str
     arrival_time: float = field(default_factory=time.time)
+    code_graph: Optional[CodeGraph] = field(default=None, compare=False)
 
 def calculate_priority(ticket: BugTicket) -> float:
     """

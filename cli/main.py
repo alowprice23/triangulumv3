@@ -7,6 +7,7 @@ import os
 
 from cli.commands.scan import scan
 from cli.commands.run import run
+from cli.commands.interactive import interactive_session
 
 @click.group()
 def cli():
@@ -17,6 +18,7 @@ def cli():
 
 cli.add_command(scan)
 cli.add_command(run)
+cli.add_command(interactive_session)
 
 if __name__ == '__main__':
     # This allows the script to be run directly for debugging

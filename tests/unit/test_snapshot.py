@@ -1,38 +1,73 @@
-import pytest
+import unittest
 from pathlib import Path
-from storage.snapshot import SnapshotManager
+import tempfile
+import shutil
 import time
 
-@pytest.fixture
-def snapshot_dir(tmp_path):
-    d = tmp_path / "snapshots"
-    d.mkdir()
-    return d
+from storage.snapshot import SnapshotManager
 
-def test_snapshot_create_and_restore(snapshot_dir):
-    """Tests creating and restoring a snapshot."""
-    snapshot_manager = SnapshotManager(snapshot_dir)
-    state = {"key": "value", "number": 123}
-    snapshot_id = "snap1"
+class TestSnapshotManager(unittest.TestCase):
 
-    snapshot_manager.create_snapshot(state, snapshot_id)
-    restored_state = snapshot_manager.restore_snapshot(snapshot_id)
+    def setUp(self):
+        """Set up a temporary directory for snapshots."""
+        self.test_dir = tempfile.mkdtemp()
+        self.snapshot_dir = Path(self.test_dir)
+        self.manager = SnapshotManager(self.snapshot_dir)
 
-    assert restored_state == state
+    def tearDown(self):
+        """Clean up the temporary directory."""
+        shutil.rmtree(self.test_dir)
 
-def test_snapshot_restore_non_existent(snapshot_dir):
-    """Tests restoring a non-existent snapshot."""
-    snapshot_manager = SnapshotManager(snapshot_dir)
-    assert snapshot_manager.restore_snapshot("non-existent") is None
+    def test_create_and_restore_snapshot(self):
+        """Tests creating a snapshot and restoring it successfully."""
+        state = {"key": "value", "number": 123}
 
-def test_snapshot_get_latest(snapshot_dir):
-    """Tests getting the latest snapshot ID."""
-    snapshot_manager = SnapshotManager(snapshot_dir)
+        snapshot_id = self.manager.create_snapshot(state)
+        self.assertIsNotNone(snapshot_id)
 
-    assert snapshot_manager.get_latest_snapshot_id() is None
+        restored_state = self.manager.restore_snapshot(snapshot_id)
+        self.assertEqual(restored_state, state)
 
-    snapshot_manager.create_snapshot({"a": 1}, "snap1")
-    time.sleep(0.01)
-    snapshot_manager.create_snapshot({"b": 2}, "snap2")
+    def test_restore_non_existent(self):
+        """Tests that restoring a non-existent snapshot returns None."""
+        self.assertIsNone(self.manager.restore_snapshot("non-existent-id"))
 
-    assert snapshot_manager.get_latest_snapshot_id() == "snap2"
+    def test_restore_corrupted_snapshot(self):
+        """Tests that restoring a corrupted snapshot returns None."""
+        state = {"key": "value"}
+        snapshot_id = self.manager.create_snapshot(state)
+
+        # Corrupt the file by overwriting it with garbage
+        snapshot_path = self.snapshot_dir / f"{snapshot_id}.snapshot"
+        with snapshot_path.open("w") as f:
+            f.write("this is not valid json and has no checksum")
+
+        restored_state = self.manager.restore_snapshot(snapshot_id)
+        self.assertIsNone(restored_state)
+
+    def test_get_and_restore_latest_snapshot(self):
+        """Tests getting and restoring the latest snapshot."""
+        state1 = {"version": 1}
+        state2 = {"version": 2}
+
+        # No snapshots exist initially
+        self.assertIsNone(self.manager.get_latest_snapshot_id())
+        id, state = self.manager.restore_latest_snapshot()
+        self.assertIsNone(id)
+        self.assertIsNone(state)
+
+        # Create two snapshots
+        id1 = self.manager.create_snapshot(state1)
+        time.sleep(0.01) # Ensure timestamps are different
+        id2 = self.manager.create_snapshot(state2)
+
+        # The latest ID should be the second one
+        self.assertEqual(self.manager.get_latest_snapshot_id(), id2)
+
+        # Restore the latest and check its content
+        latest_id, latest_state = self.manager.restore_latest_snapshot()
+        self.assertEqual(latest_id, id2)
+        self.assertEqual(latest_state, state2)
+
+if __name__ == '__main__':
+    unittest.main()

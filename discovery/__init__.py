@@ -5,7 +5,7 @@ from discovery.symbol_index import build_symbol_index
 from discovery.dep_graph import build_dependency_graph
 from discovery.scope_proposals import propose_scopes
 from discovery.manifest import generate_manifest
-from discovery.repo_scanner import scan_repo
+from discovery.repo_scanner import RepoScanner
 from discovery.ignore_rules import IgnoreRules
 from discovery.test_locator import SourceTestMapper
 
@@ -15,9 +15,11 @@ def run_discovery(repo_path: str, target: str = None) -> Dict[str, Any]:
     """
     repo_root = Path(repo_path).resolve()
 
-    ignore_rules = IgnoreRules(repo_root)
-    all_files_paths = scan_repo(repo_root, ignore_rules)
-    all_files = [str(p.relative_to(repo_root)) for p in all_files_paths]
+    ignore_rules = IgnoreRules(project_root=repo_root)
+    # The standalone discovery run does not use caching
+    scanner = RepoScanner(ignore_rules)
+    repo_manifest = scanner.scan(repo_root)
+    all_files = [item["path"] for item in repo_manifest]
 
     py_files = [f for f in all_files if f.endswith(".py")]
 

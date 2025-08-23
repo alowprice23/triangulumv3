@@ -1,53 +1,80 @@
-import pytest
+import unittest
 from pathlib import Path
-from storage.wal import WriteAheadLog
-import struct
+import tempfile
+import shutil
 
-@pytest.fixture
-def wal_path(tmp_path):
-    return tmp_path / "test.wal"
+from storage.wal import WriteAheadLog, LogEntryType
 
-def test_wal_append_and_read(wal_path):
-    """Tests appending to and reading from the WAL."""
-    wal = WriteAheadLog(wal_path)
-    data1 = b"first entry"
-    data2 = b"second entry"
+class TestWriteAheadLog(unittest.TestCase):
 
-    wal.append(data1)
-    wal.append(data2)
-    wal.close()
+    def setUp(self):
+        """Set up a temporary directory for the WAL file."""
+        self.test_dir = tempfile.mkdtemp()
+        self.wal_path = Path(self.test_dir) / "test.wal"
+        self.wal = WriteAheadLog(self.wal_path)
 
-    wal_reader = WriteAheadLog(wal_path)
-    entries = list(wal_reader.read_log())
-    wal_reader.close()
+    def tearDown(self):
+        """Clean up the temporary directory."""
+        self.wal.close()
+        shutil.rmtree(self.test_dir)
 
-    assert len(entries) == 2
-    assert entries[0] == data1
-    assert entries[1] == data2
+    def test_log_and_read_events(self):
+        """Tests logging structured events and reading them back."""
+        event1 = {"bug_id": "123", "description": "first bug"}
+        event2 = {"bug_id": "456", "status": "success"}
 
-def test_wal_empty_log(wal_path):
-    """Tests reading from an empty WAL."""
-    wal = WriteAheadLog(wal_path)
-    entries = list(wal.read_log())
-    wal.close()
-    assert not entries
+        self.wal.log_event(LogEntryType.BUG_SUBMITTED, event1)
+        self.wal.log_event(LogEntryType.SESSION_COMPLETED, event2)
 
-def test_wal_corrupted_log(wal_path):
-    """Tests reading from a corrupted WAL."""
-    wal = WriteAheadLog(wal_path)
-    data = b"good entry"
-    wal.append(data)
+        # Re-reading should yield the events back
+        events = list(self.wal.read_events())
 
-    # Corrupt the log by writing some garbage
-    with open(wal_path, "ab") as f:
-        f.write(b"garbage")
+        self.assertEqual(len(events), 2)
+        self.assertEqual(events[0]["type"], LogEntryType.BUG_SUBMITTED.value)
+        self.assertEqual(events[0]["payload"], event1)
+        self.assertEqual(events[1]["type"], LogEntryType.SESSION_COMPLETED.value)
+        self.assertEqual(events[1]["payload"], event2)
 
-    wal.close()
+    def test_read_empty_log(self):
+        """Tests reading from an empty WAL."""
+        events = list(self.wal.read_events())
+        self.assertFalse(events)
 
-    wal_reader = WriteAheadLog(wal_path)
-    entries = list(wal_reader.read_log())
-    wal_reader.close()
+    def test_handle_corrupted_log(self):
+        """Tests that the WAL reader stops at a corrupted entry."""
+        event1 = {"bug_id": "123"}
+        self.wal.log_event(LogEntryType.BUG_SUBMITTED, event1)
 
-    # Should only read the valid entry
-    assert len(entries) == 1
-    assert entries[0] == data
+        # Manually append garbage to the file
+        with self.wal_path.open("ab") as f:
+            f.write(b"this is garbage data")
+
+        event2 = {"bug_id": "456"}
+        self.wal.log_event(LogEntryType.BUG_SUBMITTED, event2)
+
+        # Only the first, valid event should be read
+        events = list(self.wal.read_events())
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["payload"], event1)
+
+    def test_clear_log(self):
+        """Tests the clear method."""
+        event1 = {"bug_id": "123"}
+        self.wal.log_event(LogEntryType.BUG_SUBMITTED, event1)
+        self.assertTrue(self.wal_path.exists())
+        self.assertGreater(self.wal_path.stat().st_size, 0)
+
+        self.wal.clear()
+
+        self.assertTrue(self.wal_path.exists())
+        self.assertEqual(self.wal_path.stat().st_size, 0)
+
+        # Ensure we can still write to the log after clearing
+        event2 = {"bug_id": "456"}
+        self.wal.log_event(LogEntryType.BUG_SUBMITTED, event2)
+        self.assertGreater(self.wal_path.stat().st_size, 0)
+        events = list(self.wal.read_events())
+        self.assertEqual(len(events), 1)
+
+if __name__ == '__main__':
+    unittest.main()

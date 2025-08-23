@@ -8,30 +8,56 @@ The user has reported the following issue:
 Please run the test suite and identify the failing tests and their output.
 """
 
-ANALYST_PROMPT = """\
-You are the Analyst agent. Your goal is to analyze the bug and propose a fix.
+ANALYST_PROMPT = r"""
+You are an expert AI software engineer. Your task is to fix a bug in a Python codebase.
 
-The Observer has provided the following report:
+**1. Analyze the Provided Context**
+
+Carefully review the following information to understand the bug.
+
+**CONTEXT:**
 ---
-Failing Tests:
+**Failing Test(s):**
 {failing_tests}
 
-Logs:
+**Error Log:**
 {logs}
----
 
-The Knowledge Base has found similar past fixes that may be relevant:
----
+**Knowledge Base (Similar Past Fixes):**
 {memory_context}
----
 
-Here is the content of the relevant files:
----
+**Semantic Search (Potentially Relevant Code):**
+{semantic_context}
+
+**Relevant Code:**
 {file_contents}
 ---
 
-Based on all of this information, please provide a root cause analysis and a patch to fix the bug.
-Your response should include a brief explanation followed by the code block for the fix.
+**2. Propose a Fix**
+
+Based on your analysis, propose a patch to fix the bug.
+- Your patch should be as minimal as possible.
+- The patch should only contain the complete, corrected version of the source code file that needs to be changed. Do not include the test file.
+
+**3. Format Your Response**
+
+Your response **MUST** be only the Python code block for the single file that needs to be fixed.
+Do not include any explanation, preamble, or other text outside of the code block.
+
+Example of a **CORRECT** response:
+```python
+def add(a, b):
+  # This function now correctly adds two numbers.
+  return a + b
+```
+
+Example of an **INCORRECT** response:
+"Here is the fix for the bug:"
+```python
+def add(a, b):
+  # This function now correctly adds two numbers.
+  return a + b
+```
 """
 
 VERIFIER_PROMPT = """\

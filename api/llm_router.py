@@ -1,27 +1,43 @@
-from typing import Any
+from typing import Dict, Type
 
-from api.openai_client import OpenAIClient
+from api.llm_base_client import LLMBaseClient
+from api.llm_clients import OpenAIClient, OllamaClient
 
-def get_llm_client(model_name: str) -> Any:
+# A registry mapping provider names to their client classes.
+# This makes the router easily extensible.
+PROVIDER_REGISTRY: Dict[str, Type[LLMBaseClient]] = {
+    "openai": OpenAIClient,
+    "ollama": OllamaClient,
+    # Add new providers here, e.g., "anthropic": AnthropicClient
+}
+
+# A cache for client instances to avoid re-initializing them.
+_client_instances: Dict[str, LLMBaseClient] = {}
+
+def get_llm_client(provider: str) -> LLMBaseClient:
     """
-    Selects and returns an LLM client based on the model name.
+    Selects and returns an LLM client instance based on the provider name.
+    Uses a cache to ensure a single instance per provider.
 
     Args:
-        model_name: The name of the model (e.g., "gpt-4", "gpt-3.5-turbo").
+        provider: The name of the LLM provider (e.g., "openai", "ollama").
 
     Returns:
         An instance of the appropriate LLM client.
 
     Raises:
-        ValueError: If the model_name is not supported.
+        ValueError: If the provider is not supported.
     """
-    if model_name.startswith("gpt-"):
-        # In a more complex system, we might have different client classes
-        # for different providers (Anthropic, Google, etc.)
-        return OpenAIClient()
+    provider = provider.lower()
 
-    # Add other models/providers here in the future
-    # elif "claude" in model_name:
-    #     return AnthropicClient()
+    if provider in _client_instances:
+        return _client_instances[provider]
 
-    raise ValueError(f"Unsupported LLM model: {model_name}")
+    client_class = PROVIDER_REGISTRY.get(provider)
+    if not client_class:
+        raise ValueError(f"Unsupported LLM provider: '{provider}'. Supported providers are: {list(PROVIDER_REGISTRY.keys())}")
+
+    instance = client_class()
+    _client_instances[provider] = instance
+
+    return instance
