@@ -29,6 +29,9 @@ Carefully review the following information to understand the bug.
 **Semantic Search (Potentially Relevant Code):**
 {semantic_context}
 
+**Strategic Advice (from past successful fixes):**
+{strategic_advice}
+
 **Relevant Code:**
 {file_contents}
 ---

@@ -10,11 +10,14 @@ from agents.observer import Observer
 from agents.analyst import Analyst
 from agents.verifier import Verifier
 from kb.patch_motif_library import PatchMotifLibrary
-from agents.meta_tuner import MetaTuner
+from agents.strategy_guide import StrategyGuide
 from discovery.code_graph import CodeGraph, CodeGraphBuilder
 from entropy.estimator import estimate_initial_entropy, calculate_n_star
 from runtime.human_hub import request_human_feedback
+from runtime.performance_logger import PerformanceLogger, PerformanceRecord
 import logging
+import time
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +36,9 @@ class Coordinator:
         # more targeted regression testing in the future.
         self.verifier = Verifier()
         self.kb = PatchMotifLibrary()
-        self.meta_tuner = MetaTuner()
+        self.strategy_guide = StrategyGuide(log_path=Path("state/performance_log.jsonl"))
         self.code_graph_builder = CodeGraphBuilder(repo_root=self.repo_root)
+        self.performance_logger = PerformanceLogger(log_path=Path("state/performance_log.jsonl"))
 
     def run_debugging_cycle(
         self,
@@ -46,6 +50,7 @@ class Coordinator:
         respecting the entropy budget N*.
         (README.md, "Inevitable Solution Formula")
         """
+        start_time = time.time()
         logger.info(f"Coordinator: Starting debugging cycle for: '{bug_description}'")
 
         # 1. Build the Code Graph if it wasn't provided (for backward compatibility)
@@ -65,7 +70,6 @@ class Coordinator:
         state = "REPRO"
         observer_report = {}
         analyst_report = {}
-        accumulated_hints = ""
         n = 0
 
         # Initialize entropy budget with placeholders
@@ -93,15 +97,17 @@ class Coordinator:
                     state = "PATCH"
 
             elif state == "PATCH":
-                # Add any accumulated hints to the observer report for the Analyst
-                if accumulated_hints:
-                    observer_report["logs"] += "\n" + accumulated_hints
+                # Get strategic advice before calling the analyst
+                strategic_advice = self.strategy_guide.get_strategic_advice(observer_report.get("logs", ""))
+
+                # The observer_report will be passed to the analyst.
+                # We can add our new context to it.
+                observer_report['strategic_advice'] = strategic_advice or "No relevant historical data found."
 
                 analyst_report = self.analyst.analyze_and_propose_patch(
                     observer_report,
                     self.repo_root,
-                    code_graph.manifest,
-                    code_graph.symbol_index
+                    code_graph
                 )
                 if analyst_report.get("status") != "success":
                     final_result = {"status": "failed", "reason": "Analyst could not generate a patch."}
@@ -154,12 +160,6 @@ class Coordinator:
                         state = "PATCH"
 
             if state == "ESCALATE":
-                # Log the failure and get a hint for the next try
-                llm_config = {"model_name": self.analyst.llm_config.model_name}
-                hint = self.meta_tuner.tune_from_outcome(final_result, llm_config)
-                if hint:
-                    accumulated_hints += hint
-
                 # If we've exhausted the budget, break the loop for real.
                 if n >= N_star - 1:
                     final_result = {"status": "failed", "reason": f"Exceeded entropy budget (N*={N_star})."}
@@ -186,16 +186,32 @@ class Coordinator:
         if state != "DONE" and not final_result:
             final_result = {"status": "failed", "reason": f"Exceeded entropy budget (N*={N_star})."}
 
-        # Log the final outcome and get a hint if it was a failure
-        llm_config = {"model_name": self.analyst.llm_config.model_name}
-        hint = self.meta_tuner.tune_from_outcome(final_result, llm_config)
+        # --- Performance Logging ---
+        end_time = time.time()
+        duration = end_time - start_time
 
-        # This part is not fully implemented in this version, but it shows
-        # how a persistent hint could be used in a real system.
-        if hint:
-            # In a real system, we might save this hint to a file or a
-            # database associated with this bug_id to be used if the
-            # supervisor retries this bug later.
-            logger.info(f"Coordinator: Received hint for future runs: {hint}")
+        # Extract the single patch string for logging, if successful.
+        successful_patch_str = None
+        if final_result.get("status") == "success":
+            patch_bundle = final_result.get("patch_bundle", {})
+            if patch_bundle:
+                # Assuming one file changed for simplicity in logging
+                successful_patch_str = list(patch_bundle.values())[0]
+
+        record = PerformanceRecord(
+            session_id=str(start_time), # Using start time as a unique enough ID for now
+            timestamp=datetime.fromtimestamp(end_time).isoformat(),
+            final_status=final_result.get("status", "failed"),
+            failure_reason=final_result.get("reason"),
+            cycles_taken=n + 1,
+            duration_seconds=duration,
+            llm_provider=self.analyst.llm_config.provider,
+            llm_model=self.analyst.llm_config.model_name,
+            initial_entropy=H0,
+            information_gain=g,
+            human_suggestion_provided=bool(final_result.get("human_suggestion")),
+            successful_patch=successful_patch_str
+        )
+        self.performance_logger.log_session(record)
 
         return final_result

@@ -1,0 +1,1 @@
+The `calculate_sum` function in `main.py` is not working correctly. It seems to have an off-by-one error and returns a sum that is one less than the expected value. The test `test_calculate_sum` fails because `calculate_sum(5)` returns 14 instead of the expected 15.

@@ -91,6 +91,7 @@ class Analyst:
             logs=observer_report["logs"],
             memory_context=memory_context,
             semantic_context=semantic_context,
+            strategic_advice=observer_report.get("strategic_advice", "No strategic advice available."),
             file_contents=file_contents
         )
 

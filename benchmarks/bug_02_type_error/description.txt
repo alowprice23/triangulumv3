@@ -1,0 +1,1 @@
+The `greet` function in `main.py` is throwing a TypeError when it's called with an integer argument. The test `test_greet_with_number` fails with a `TypeError: can only concatenate str (not "int") to str`. The function should be able to handle numeric input gracefully, perhaps by converting it to a string.
