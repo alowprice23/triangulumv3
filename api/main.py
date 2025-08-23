@@ -1,11 +1,16 @@
 import asyncio
+import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from pathlib import Path
 import threading
+from prometheus_client import make_asgi_app, REGISTRY
+from starlette.routing import Mount
 
 from runtime.supervisor import Supervisor
+
+logger = logging.getLogger(__name__)
 
 # --- Data Models ---
 class BugSubmission(BaseModel):
@@ -31,7 +36,7 @@ async def lifespan(app: FastAPI):
     It starts the Supervisor in a background thread when the API starts
     and stops it when the API shuts down.
     """
-    print("API Lifespan: Startup")
+    logger.info("API Lifespan: Startup")
     # Assume the repository to be fixed is in the current working directory
     repo_root = Path.cwd() / "buggy_project"
     supervisor = Supervisor(repo_root=repo_root)
@@ -48,12 +53,21 @@ async def lifespan(app: FastAPI):
 
     yield # The API is now running
 
-    print("API Lifespan: Shutdown")
+    logger.info("API Lifespan: Shutdown")
     supervisor.stop() # Signal the supervisor to stop
     # The thread is a daemon, so it will be terminated on exit
 
+# --- Metrics App ---
+metrics_app = make_asgi_app()
+
 # --- FastAPI App ---
-app = FastAPI(lifespan=lifespan)
+# We mount the metrics app on a sub-route.
+routes = [
+    Mount("/metrics", app=metrics_app)
+]
+
+app = FastAPI(lifespan=lifespan, routes=routes)
+
 
 # --- API Endpoints ---
 @app.post("/bugs", status_code=202)

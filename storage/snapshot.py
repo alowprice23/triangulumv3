@@ -1,10 +1,13 @@
 import json
 import struct
 import time
+import logging
 from pathlib import Path
 from typing import Dict, Any, Tuple, Optional
 
 from storage.crc import crc32, verify_crc32
+
+logger = logging.getLogger(__name__)
 
 class SnapshotManager:
     """
@@ -53,7 +56,7 @@ class SnapshotManager:
         with snapshot_path.open("rb") as f:
             header = f.read(4)
             if len(header) < 4:
-                print(f"Warning: Snapshot {snapshot_id} is corrupt (invalid header).")
+                logger.warning(f"Snapshot {snapshot_id} is corrupt (invalid header).")
                 return None
 
             checksum = struct.unpack("!I", header)[0]
@@ -62,7 +65,7 @@ class SnapshotManager:
             if verify_crc32(data, checksum):
                 return json.loads(data.decode("utf-8"))
             else:
-                print(f"Warning: Snapshot {snapshot_id} is corrupt (checksum mismatch).")
+                logger.warning(f"Snapshot {snapshot_id} is corrupt (checksum mismatch).")
                 return None
 
     def get_latest_snapshot_id(self) -> Optional[str]:

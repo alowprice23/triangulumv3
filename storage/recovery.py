@@ -1,7 +1,10 @@
+import logging
 from typing import Dict, Any
 
 from storage.wal import WriteAheadLog, LogEntryType
 from storage.snapshot import SnapshotManager
+
+logger = logging.getLogger(__name__)
 
 class RecoveryManager:
     """
@@ -20,18 +23,18 @@ class RecoveryManager:
             The recovered state dictionary. If no snapshot or WAL is found,
             returns a default initial state.
         """
-        print("RecoveryManager: Starting state recovery...")
+        logger.info("RecoveryManager: Starting state recovery...")
         snapshot_id, state = self._snapshot_manager.restore_latest_snapshot()
 
         if state:
-            print(f"RecoveryManager: Restored snapshot {snapshot_id}.")
+            logger.info(f"RecoveryManager: Restored snapshot {snapshot_id}.")
             last_event_timestamp = int(snapshot_id)
         else:
-            print("RecoveryManager: No valid snapshot found. Starting from empty state.")
+            logger.info("RecoveryManager: No valid snapshot found. Starting from empty state.")
             state = self._get_initial_state()
             last_event_timestamp = 0
 
-        print("RecoveryManager: Replaying events from Write-Ahead Log...")
+        logger.info("RecoveryManager: Replaying events from Write-Ahead Log...")
         events_replayed = 0
         for event in self._wal.read_events():
             # The bug_id is a timestamp we can use for ordering
@@ -41,7 +44,7 @@ class RecoveryManager:
                 self._apply_event(state, event)
                 events_replayed += 1
 
-        print(f"RecoveryManager: Replayed {events_replayed} events. Recovery complete.")
+        logger.info(f"RecoveryManager: Replayed {events_replayed} events. Recovery complete.")
         return state
 
     def _get_event_timestamp(self, event: Dict[str, Any]) -> int:
@@ -65,7 +68,7 @@ class RecoveryManager:
             # Add the ticket to the scheduler's list
             # The list is a list of dicts, not BugTicket objects, for JSON serialization
             state["scheduler_tickets"].append(payload)
-            print(f"  Replaying: BUG_SUBMITTED for {bug_id}")
+            logger.debug(f"  Replaying: BUG_SUBMITTED for {bug_id}")
 
         elif entry_type == LogEntryType.SESSION_LAUNCHED:
             # Move ticket from scheduler to active sessions
@@ -73,7 +76,7 @@ class RecoveryManager:
                 t for t in state["scheduler_tickets"] if t["bug_id"] != bug_id
             ]
             state["active_sessions"][bug_id] = payload
-            print(f"  Replaying: SESSION_LAUNCHED for {bug_id}")
+            logger.debug(f"  Replaying: SESSION_LAUNCHED for {bug_id}")
 
         elif entry_type == LogEntryType.SESSION_COMPLETED:
             # Remove from active sessions OR scheduler queue
@@ -83,7 +86,7 @@ class RecoveryManager:
                 state["scheduler_tickets"] = [
                     t for t in state["scheduler_tickets"] if t["bug_id"] != bug_id
                 ]
-            print(f"  Replaying: SESSION_COMPLETED for {bug_id}")
+            logger.debug(f"  Replaying: SESSION_COMPLETED for {bug_id}")
 
     def _get_initial_state(self) -> Dict[str, Any]:
         """Returns the default initial state for the supervisor."""

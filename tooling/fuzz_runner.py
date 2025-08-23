@@ -1,5 +1,8 @@
+import logging
 from pathlib import Path
 from typing import Dict, Any
+
+logger = logging.getLogger(__name__)
 
 class FuzzRunner:
     """
@@ -22,7 +25,7 @@ class FuzzRunner:
         Returns:
             A dictionary with the results of the simulated fuzz test.
         """
-        print(f"FuzzRunner: Simulating fuzz test on {function_name} in {target_file}...")
+        logger.info(f"FuzzRunner: Simulating fuzz test on {function_name} in {target_file}...")
 
         # This is a placeholder. A real implementation would involve a complex
         # subprocess call to a fuzzing engine and parsing its output.

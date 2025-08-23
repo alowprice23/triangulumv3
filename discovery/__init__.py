@@ -16,6 +16,7 @@ def run_discovery(repo_path: str, target: str = None) -> Dict[str, Any]:
     repo_root = Path(repo_path).resolve()
 
     ignore_rules = IgnoreRules(project_root=repo_root)
+    # The standalone discovery run does not use caching
     scanner = RepoScanner(ignore_rules)
     repo_manifest = scanner.scan(repo_root)
     all_files = [item["path"] for item in repo_manifest]

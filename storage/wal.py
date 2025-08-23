@@ -1,10 +1,13 @@
 import json
 import struct
+import logging
 from enum import Enum
 from pathlib import Path
 from typing import Generator, Dict, Any
 
 from storage.crc import crc32, verify_crc32
+
+logger = logging.getLogger(__name__)
 
 class LogEntryType(str, Enum):
     """Defines the types of events that can be logged."""
@@ -51,21 +54,21 @@ class WriteAheadLog:
                 if not header_data:
                     break
                 if len(header_data) < 8:
-                    print(f"Warning: Log file corrupted. Invalid header size.")
+                    logger.warning(f"Log file corrupted. Invalid header size.")
                     break
 
                 length, checksum = struct.unpack("!II", header_data)
                 data = f.read(length)
 
                 if len(data) < length:
-                    print(f"Warning: Log file corrupted. Incomplete data for entry.")
+                    logger.warning(f"Log file corrupted. Incomplete data for entry.")
                     break
 
                 if verify_crc32(data, checksum):
                     event = json.loads(data.decode("utf-8"))
                     yield event
                 else:
-                    print(f"Warning: Log file corrupted. Checksum mismatch.")
+                    logger.warning(f"Log file corrupted. Checksum mismatch.")
                     break
         self._log_file = self.log_path.open("ab") # Reopen for appending
 

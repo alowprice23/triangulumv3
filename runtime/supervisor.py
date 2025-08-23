@@ -1,4 +1,5 @@
 import time
+import logging
 from pathlib import Path
 from typing import Dict, Any
 
@@ -9,6 +10,9 @@ from runtime.allocator import Allocator
 from storage.wal import WriteAheadLog, LogEntryType
 from storage.snapshot import SnapshotManager
 from storage.recovery import RecoveryManager
+import runtime.metrics as metrics
+
+logger = logging.getLogger(__name__)
 
 class Supervisor:
     """
@@ -45,7 +49,7 @@ class Supervisor:
 
     def _initialize_from_state(self, state: Dict[str, Any]):
         """Populates the runtime components from a recovered state dict."""
-        print("Supervisor: Initializing from recovered state...")
+        logger.info("Supervisor: Initializing from recovered state...")
         # Re-populate the scheduler's queue
         for ticket_data in state.get("scheduler_tickets", []):
             self.scheduler.submit_ticket(BugTicket(**ticket_data))
@@ -53,7 +57,7 @@ class Supervisor:
         # Sessions in 'active_sessions' from a snapshot were running before crash.
         # They did not complete, so we must re-queue them.
         for bug_id, session_data in state.get("active_sessions", {}).items():
-            print(f"Supervisor: Re-queuing incomplete session for bug {bug_id}")
+            logger.info(f"Supervisor: Re-queuing incomplete session for bug {bug_id}")
             # We need the original ticket info to re-queue
             ticket_data = {
                 "bug_id": bug_id,
@@ -77,7 +81,8 @@ class Supervisor:
         )
 
         self.scheduler.submit_ticket(ticket)
-        print(f"Supervisor: New bug ticket {ticket.bug_id} submitted.")
+        metrics.BUGS_SUBMITTED.inc()
+        logger.info(f"Supervisor: New bug ticket {ticket.bug_id} submitted.")
         return ticket
 
     def tick(self):
@@ -88,15 +93,31 @@ class Supervisor:
         completed_sessions = self.executor.check_completed_sessions()
         for bug_id, result in completed_sessions:
             status = result.get("status", "unknown")
-            print(f"Supervisor: Session for bug {bug_id} finished with status: {status}.")
+            logger.info(f"Supervisor: Session for bug {bug_id} finished with status: {status}.")
             self.wal.log_event(LogEntryType.SESSION_COMPLETED, {"bug_id": bug_id, "result": result})
 
-        # 2. Update PID controller
+            # Update metrics
+            if status == "success":
+                metrics.BUGS_FIXED_SUCCESS.inc()
+            else:
+                failure_reason = result.get("reason", "unknown")
+                metrics.BUGS_FIXED_FAILURE.labels(reason=failure_reason).inc()
+
+            # Record duration
+            start_time_ns = int(float(bug_id))
+            duration_s = (time.time_ns() - start_time_ns) / 1e9
+            metrics.BUG_FIX_DURATION_SECONDS.observe(duration_s)
+
+        # 2. Update gauges
+        active_sessions_count = self.executor.get_active_session_count()
         current_backlog = len(self.scheduler)
+        metrics.ACTIVE_SESSIONS.set(active_sessions_count)
+        metrics.QUEUED_TICKETS.set(current_backlog)
+
+        # 3. Update PID controller
         pid_output = self.pid_controller.update(current_backlog)
 
-        # 3. Decide whether to spawn new sessions
-        active_sessions_count = self.executor.get_active_session_count()
+        # 4. Decide whether to spawn new sessions
         should_spawn = pid_output > 0.2 and active_sessions_count < self.max_concurrent_sessions
 
         if not self.scheduler.is_empty() and should_spawn:
@@ -104,14 +125,14 @@ class Supervisor:
             if next_ticket:
                 launched = self.executor.launch_session(next_ticket, self.repo_root)
                 if launched:
-                    print(f"Supervisor: Launched session for bug {next_ticket.bug_id}")
+                    logger.info(f"Supervisor: Launched session for bug {next_ticket.bug_id}")
                     self.wal.log_event(LogEntryType.SESSION_LAUNCHED, {"bug_id": next_ticket.bug_id, "description": next_ticket.description, "severity": next_ticket.severity})
                 else:
                     self.scheduler.submit_ticket(next_ticket) # Re-queue if launch failed
 
         # 4. Periodic Snapshot
         if self.ticks % self.snapshot_interval == 0:
-            print("Supervisor: Creating periodic snapshot...")
+            logger.info("Supervisor: Creating periodic snapshot...")
             self.snapshot_manager.create_snapshot(self._get_current_state())
 
     def _get_current_state(self) -> Dict[str, Any]:
@@ -128,7 +149,7 @@ class Supervisor:
 
     def run(self, duration_seconds: int):
         """Runs the supervisor loop for a given duration."""
-        print(f"Supervisor: Starting main loop for {duration_seconds} seconds.")
+        logger.info(f"Supervisor: Starting main loop for {duration_seconds} seconds.")
         self.is_running = True
         end_time = time.time() + duration_seconds
 
@@ -142,13 +163,13 @@ class Supervisor:
     def stop(self):
         """Stops the supervisor and performs a clean shutdown."""
         if self.is_running:
-            print("Supervisor: Shutting down...")
+            logger.info("Supervisor: Shutting down...")
             self.is_running = False
-            print("Supervisor: Creating final snapshot.")
+            logger.info("Supervisor: Creating final snapshot.")
             self.snapshot_manager.create_snapshot(self._get_current_state())
             self.executor.shutdown()
             self.wal.close()
-            print("Supervisor: Shutdown complete.")
+            logger.info("Supervisor: Shutdown complete.")
 
 # Add to_dict to BugTicket for easier serialization
 def ticket_to_dict(self):

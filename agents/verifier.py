@@ -1,3 +1,5 @@
+import tempfile
+import shutil
 from pathlib import Path
 import networkx as nx
 from typing import Dict, Any, List, Optional
@@ -7,12 +9,15 @@ import tooling.test_runner
 from tooling.repair import RepairTool
 from tooling.fuzz_runner import FuzzRunner
 from tooling.patch_bundle import apply_patch_bundle
+from security.scanner import scan_for_malicious_code
+import runtime.metrics as metrics
+import hashlib
 
 class Verifier:
     """
     The Verifier agent applies a change and runs tests to verify the fix
-    and check for regressions. It can also use advanced tools like a
-    ripple effect analyzer and a fuzz tester.
+    and check for regressions. All operations are performed in a temporary
+    sandboxed copy of the repository.
     """
     def __init__(self, dependency_graph: Optional[nx.DiGraph] = None):
         self.graph = dependency_graph
@@ -25,43 +30,32 @@ class Verifier:
         expect_fail: bool = False
     ) -> Dict[str, Any]:
 
-        def _get_original_file_contents(file_paths: List[str]) -> Dict[str, str]:
-            """Reads and stores the original content of files to be changed."""
-            contents = {}
-            for file_path in file_paths:
-                full_path = repo_root / file_path
-                if full_path.exists():
-                    contents[file_path] = full_path.read_text()
-                else:
-                    contents[file_path] = None
-            return contents
-
-        def _restore_files(original_contents: Dict[str, str]):
-            """Restores files to their original content."""
-            print("Verifier: Restoring original file contents...")
-            for file_path, content in original_contents.items():
-                full_path = repo_root / file_path
-                if content is not None:
-                    full_path.write_text(content)
-                elif full_path.exists():
-                    full_path.unlink()
-
-        patch_bundle = analyst_report.get("patch_bundle")
-        if not patch_bundle:
-            return {"status": "failed", "message": "No patch bundle found in analyst report."}
-
-        files_to_change = analyst_report.get("files_changed", [])
-        original_contents = _get_original_file_contents(files_to_change)
+        sandbox_dir = Path(tempfile.mkdtemp())
 
         try:
-            # Apply the changes
-            apply_results = apply_patch_bundle(patch_bundle, repo_root)
+            # Create a sandboxed copy of the repository
+            shutil.copytree(repo_root, sandbox_dir, dirs_exist_ok=True)
+
+            patch_bundle = analyst_report.get("patch_bundle")
+            if not patch_bundle:
+                return {"status": "failed", "message": "No patch bundle found in analyst report."}
+
+            # Security Scan: Check the patch for malicious code before applying
+            patch_hash = hashlib.sha256(str(patch_bundle).encode()).hexdigest()[:8]
+            for file_path, patch_content in patch_bundle.items():
+                threat = scan_for_malicious_code(patch_content)
+                if threat:
+                    metrics.SECURITY_SCAN_FAILED.inc()
+                    return {"status": "failed", "message": f"Security scan failed for {file_path}: {threat}"}
+
+            # Apply the changes within the sandbox
+            apply_results = apply_patch_bundle(patch_bundle, sandbox_dir)
             if apply_results.get("failed"):
-                _restore_files(original_contents)
                 return {"status": "failed", "message": "Failed to apply patch bundle.", "details": apply_results["failed"]}
 
-            # Run tests
-            report = tooling.test_runner.run_tests(repo_root, test_targets=original_failing_tests)
+            # Run tests within the sandbox
+            metrics.VERIFIER_CYCLES.labels(patch_hash=patch_hash).inc()
+            report = tooling.test_runner.run_tests(sandbox_dir, test_targets=original_failing_tests)
             failed_count = report.get("summary", {}).get("failed", 0)
 
             # Check against expectation
@@ -80,17 +74,12 @@ class Verifier:
                     status = "fail"
                     message = "Tests are still failing."
 
-            verifier_report = {
+            return {
                 "status": status,
                 "message": message,
                 "details": report
             }
 
-            if status != "success":
-                _restore_files(original_contents)
-
-            return verifier_report
-
-        except Exception as e:
-            _restore_files(original_contents)
-            raise e
+        finally:
+            # Ensure the sandbox is always cleaned up
+            shutil.rmtree(sandbox_dir)

@@ -10,7 +10,8 @@ from agents.prompts import ANALYST_PROMPT
 from tooling.patch_bundle import create_patch_bundle
 from kb.patch_motif_library import PatchMotifLibrary
 from discovery.dep_graph import build_dependency_graph
-from entropy.estimator import estimate_g_from_patch_size, _count_lines_of_code
+from entropy.estimator import estimate_g_from_patch
+import runtime.metrics as metrics
 
 class Analyst:
     """
@@ -99,6 +100,7 @@ class Analyst:
 
         click.echo("Analyst: Calling LLM to generate a fix...")
         llm_response = self.llm_client.get_completion(prompt, model=self.llm_config.model_name)
+        metrics.LLM_CALLS.labels(agent="Analyst", model=self.llm_config.model_name).inc()
 
         if not llm_response:
             return {"status": "failed", "message": "LLM call failed or returned no response."}
@@ -113,12 +115,13 @@ class Analyst:
             original_files={source_file_path_str: source_file_content},
             modified_files={source_file_path_str: modified_code}
         )
+        metrics.PATCHES_GENERATED.inc()
 
         # Estimate information gain (g) from the generated patch
-        patch_content = patch_bundle.get(source_file_path_str, "")
-        scope_loc = _count_lines_of_code(repo_root / source_file_path_str)
-        # A more advanced g would consider the whole scope's LOC
-        g = estimate_g_from_patch_size(patch_content, scope_loc)
+        g = estimate_g_from_patch(
+            original_content=source_file_content,
+            patch_content=modified_code
+        )
         click.echo(f"Analyst: Estimated information gain g = {g:.2f}")
 
         return {

@@ -55,34 +55,54 @@ def estimate_initial_entropy(
             scope_files.update(neighbors)
 
     total_loc = 0
+    total_degree = 0
     for file_str in scope_files:
         total_loc += _count_lines_of_code(repo_root / file_str)
+        if dep_graph.has_node(file_str):
+            total_degree += dep_graph.degree(file_str)
 
-    if total_loc <= 0:
+    avg_degree = (total_degree / len(scope_files)) if scope_files else 0
+
+    # The complexity is a function of both lines of code and connectivity
+    complexity_metric = total_loc * (1 + avg_degree)
+
+    if complexity_metric <= 0:
         return 1.0
 
-    h0 = math.log2(total_loc)
-    print(f"Entropy Estimator: Calculated H₀ = {h0:.2f} from {total_loc} LOC in {len(scope_files)} files.")
+    h0 = math.log2(complexity_metric)
+    print(f"Entropy Estimator: Calculated H₀ = {h0:.2f} from {total_loc} LOC, {len(scope_files)} files, and avg degree {avg_degree:.2f}.")
     return h0
 
+import difflib
+
 # The functions below can be used for plan costing, which is the next step.
-def estimate_g_from_patch_size(patch_content: str, total_loc_in_scope: int) -> float:
+def estimate_g_from_patch(original_content: str, patch_content: str) -> float:
     """
-    Estimates information gain (g) based on the size of the patch relative
-    to the scope's total lines of code. A larger, more impactful patch
-    provides more information.
+    Estimates information gain (g) based on the significance of the change
+    introduced by a patch, using a diff ratio.
+
+    Args:
+        original_content: The original content of the file.
+        patch_content: The content of the file after the patch.
+
+    Returns:
+        The estimated information gain (g).
     """
-    if total_loc_in_scope == 0:
-        return 0.0
+    if not original_content:
+        return 1.0 # If the file was created, this is significant gain.
 
-    # Simple heuristic: number of changed lines / total lines
-    # We add 1 to avoid log(0) for empty patches
-    changed_lines = len(patch_content.splitlines()) + 1
+    # Use difflib to get a measure of the change. ratio() returns a measure
+    # of the sequences' similarity (0=totally different, 1=identical).
+    # We want information gain, so we are interested in the difference.
+    similarity = difflib.SequenceMatcher(None, original_content, patch_content).ratio()
 
-    # Information gain is proportional to the log of the ratio of total lines to changed lines.
-    # This means a smaller change yields less information.
-    g = math.log2(total_loc_in_scope / changed_lines)
-    return max(0.1, g) # Ensure a minimum information gain to prevent infinite loops
+    # Information gain is inversely proportional to similarity.
+    # If similarity is 1.0 (no change), gain is 0.
+    # If similarity is 0.0 (total change), gain is high.
+    # We use a simple formula and add a small constant to avoid log(0).
+    information_gain = math.log2(1 / (similarity + 0.001) - 0.99)
+
+    return max(0.1, information_gain) # Ensure a minimum gain.
 
 def calculate_n_star(h0: float, g: float) -> int:
     """

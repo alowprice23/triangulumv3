@@ -34,7 +34,14 @@ class Coordinator:
         self.meta_tuner = MetaTuner()
 
         # Initialize discovery components
-        self.scanner = RepoScanner(ignore_rules=IgnoreRules(project_root=self.repo_root))
+        # The scanner will use a cache within the state directory of the supervisor
+        # to speed up repeated scans.
+        state_dir = Path.cwd() / "state" # Assuming supervisor state is here
+        scanner_cache_path = state_dir / "scanner.cache.json"
+        self.scanner = RepoScanner(
+            ignore_rules=IgnoreRules(project_root=self.repo_root),
+            cache_path=scanner_cache_path
+        )
 
     def run_debugging_cycle(
         self,
@@ -66,13 +73,13 @@ class Coordinator:
         state = "REPRO"
         observer_report = {}
         analyst_report = {}
+        accumulated_hints = ""
         n = 0
 
         # Initialize entropy budget with placeholders
         H0 = 1.0
         g = 1.0
         N_star = 3 # Minimum attempts
-        n = 0
 
         while n < N_star:
             print(f"\n--- Cycle {n+1}/{N_star}, State: {state} ---")
@@ -94,6 +101,10 @@ class Coordinator:
                     state = "PATCH"
 
             elif state == "PATCH":
+                # Add any accumulated hints to the observer report for the Analyst
+                if accumulated_hints:
+                    observer_report["logs"] += "\n" + accumulated_hints
+
                 analyst_report = self.analyst.analyze_and_propose_patch(
                     observer_report,
                     self.repo_root,
@@ -117,11 +128,16 @@ class Coordinator:
                     analyst_report, observer_report["failing_tests"], self.repo_root, expect_fail=True
                 )
 
-                if verifier_report_fail.get("status") != "fail":
+                # On the first attempt, we expect a 'fail' status because the bug is still present.
+                # However, if it fails for a security reason, it's a terminal failure.
+                if verifier_report_fail.get("status") == "failed" and "Security scan failed" in verifier_report_fail.get("message", ""):
+                    final_result = verifier_report_fail
+                    state = "DONE" # Treat as a terminal state to break the loop
+                elif verifier_report_fail.get("status") != "fail":
                     final_result = {"status": "failed", "reason": "Verifier did not fail on the first attempt as expected."}
                     state = "ESCALATE"
                 else:
-                    # Second attempt (succeed)
+                    # The test failed as expected, now try for a success
                     print("Coordinator: Verifier second attempt (expected to succeed).")
                     verifier_report_succeed = self.verifier.verify_changes(
                         analyst_report, observer_report["failing_tests"], self.repo_root
@@ -146,19 +162,29 @@ class Coordinator:
                         state = "PATCH"
 
             if state == "ESCALATE":
+                # Log the failure and get a hint for the next try
+                llm_config = {"model_name": self.analyst.llm_config.model_name}
+                hint = self.meta_tuner.tune_from_outcome(final_result, llm_config)
+                if hint:
+                    accumulated_hints += hint
+
                 # If we've exhausted the budget, break the loop for real.
-                if n >= N_star -1:
-                    final_result = {"status": "failed", "reason": f"Exceeded entropy budget (N*={N_star}) even with human help."}
+                if n >= N_star - 1:
+                    final_result = {"status": "failed", "reason": f"Exceeded entropy budget (N*={N_star})."}
+                    # One last chance for human intervention
+                    human_context = {
+                        "failing_tests": observer_report.get("failing_tests", []),
+                        "logs": observer_report.get("logs", "No logs available."),
+                        "last_failed_patch": analyst_report.get("patch_bundle", {}).get(
+                            analyst_report.get("files_changed", [""])[0]
+                        )
+                    }
+                    human_hint = request_human_feedback(human_context)
+                    # This hint is for the user/supervisor, not for a retry
+                    final_result["human_suggestion"] = human_hint
                     break
 
-                human_hint = request_human_feedback({
-                    "failing_tests": observer_report.get("failing_tests", []),
-                    "logs": observer_report.get("logs", ""),
-                    "reason": final_result.get("reason", "Unknown reason for escalation.")
-                })
-                observer_report["logs"] += f"\n--- Human Hint ---\n{human_hint}\n"
                 state = "PATCH"
-                # The loop continues to the next n
 
             elif state == "DONE":
                 break
@@ -168,8 +194,16 @@ class Coordinator:
         if state != "DONE" and not final_result:
             final_result = {"status": "failed", "reason": f"Exceeded entropy budget (N*={N_star})."}
 
-        # Log the final outcome for meta-tuning
+        # Log the final outcome and get a hint if it was a failure
         llm_config = {"model_name": self.analyst.llm_config.model_name}
-        self.meta_tuner.tune_from_outcome(final_result, llm_config)
+        hint = self.meta_tuner.tune_from_outcome(final_result, llm_config)
+
+        # This part is not fully implemented in this version, but it shows
+        # how a persistent hint could be used in a real system.
+        if hint:
+            # In a real system, we might save this hint to a file or a
+            # database associated with this bug_id to be used if the
+            # supervisor retries this bug later.
+            print(f"Coordinator: Received hint for future runs: {hint}")
 
         return final_result

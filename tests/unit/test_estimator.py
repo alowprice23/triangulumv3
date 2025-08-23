@@ -7,9 +7,10 @@ import networkx as nx
 
 from entropy.estimator import (
     estimate_initial_entropy,
-    estimate_g_from_patch_size,
+    estimate_g_from_patch,
     calculate_n_star,
     _count_lines_of_code,
+    estimate_h0_from_loc,
 )
 
 class TestEntropyEstimator(unittest.TestCase):
@@ -42,9 +43,10 @@ class TestEntropyEstimator(unittest.TestCase):
         graph.add_edge("src/main.py", "src/utils.py") # main depends on utils
         graph.add_edge("tests/test_main.py", "src/main.py") # test depends on main
 
-        # H0 should be based on the LOC of main.py, utils.py, and test_main.py
         # Total LOC = 100 + 50 + 30 = 180
-        expected_h0 = math.log2(180)
+        # Avg degree = (degree(main) + degree(utils) + degree(test)) / 3 = (2 + 1 + 1) / 3 = 1.333
+        # Complexity = 180 * (1 + 1.333) = 420
+        expected_h0 = math.log2(180 * (1 + 4/3))
 
         h0 = estimate_initial_entropy(
             failing_test_paths=["tests/test_main.py"],
@@ -53,14 +55,12 @@ class TestEntropyEstimator(unittest.TestCase):
         )
         self.assertAlmostEqual(h0, expected_h0, places=5)
 
-    def test_estimate_g_from_patch_size(self):
-        """Tests the information gain (g) estimation from patch size."""
-        patch = "line1\nline2\nline3" # 3 lines
-        total_loc = 180
-        # g = log2(180 / (3+1)) = log2(45)
-        expected_g = math.log2(45)
-        g = estimate_g_from_patch_size(patch, total_loc)
-        self.assertAlmostEqual(g, expected_g, places=5)
+    def test_estimate_g_from_patch(self):
+        """Tests the information gain (g) estimation from a diff."""
+        original = "line1\nline2\nline3"
+        modified = "line1\nline_two\nline3"
+        g = estimate_g_from_patch(original, modified)
+        self.assertGreaterEqual(g, 0.1) # Check that it returns a valid gain
 
     def test_calculate_n_star(self):
         """Tests the N* calculation."""
