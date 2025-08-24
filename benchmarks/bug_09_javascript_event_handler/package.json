@@ -1,0 +1,16 @@
+{
+    "name": "bug_09_javascript_event_handler",
+    "version": "1.0.0",
+    "description": "A simple project to demonstrate a buggy event handler.",
+    "main": "index.js",
+    "scripts": {
+        "test": "jest"
+    },
+    "devDependencies": {
+        "jest": "^27.0.0",
+        "jest-environment-jsdom": "^27.0.0"
+    },
+    "jest": {
+        "testEnvironment": "jsdom"
+    }
+}

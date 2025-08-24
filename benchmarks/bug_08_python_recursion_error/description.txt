@@ -1,0 +1,1 @@
+This benchmark contains a recursive function to calculate the factorial of a number. The function has a logic error that causes it to fail for n > 10.

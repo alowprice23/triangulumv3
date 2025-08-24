@@ -1,0 +1,1 @@
+This benchmark contains a simple HTML page with a button. The JavaScript code has a bug where the event handler for the button is not correctly attached, so clicking the button does nothing.
