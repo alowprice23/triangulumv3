@@ -8,6 +8,7 @@ from math import ceil, log2
 
 from agents.observer import Observer
 from agents.analyst import Analyst
+from agents.llm_config import LLMConfig
 from agents.verifier import Verifier
 from kb.patch_motif_library import PatchMotifLibrary
 from agents.strategy_guide import StrategyGuide
@@ -30,10 +31,12 @@ class Coordinator:
     within the deterministic, entropy-driven framework specified in
     the README.md.
     """
-    def __init__(self, repo_root: Path):
+    def __init__(self, repo_root: Path, llm_provider: str = "openai", llm_model: str = "gpt-3.5-turbo", interactive_mode: bool = True):
         self.repo_root = repo_root
-        self.observer = Observer()
-        self.analyst = Analyst()
+        self.interactive_mode = interactive_mode
+        self.observer = None # Will be initialized once the language is known
+        llm_config = LLMConfig(provider=llm_provider, model_name=llm_model)
+        self.analyst = Analyst(llm_config=llm_config)
         # The Verifier can be initialized with a dependency graph to perform
         # more targeted regression testing in the future.
         self.verifier = None # Will be initialized once the language is known
@@ -74,10 +77,12 @@ class Coordinator:
                 return {"status": "aborted", "reason": "Repository is empty or all files are ignored."}
             logger.info(f"Coordinator: Code graph built. Found {len(code_graph.manifest)} files.")
             self.verifier = Verifier(adapter)
+            self.observer = Observer(adapter)
         else:
             logger.info("Coordinator: Using pre-built code graph.")
             adapter = get_language_adapter(code_graph.language)
             self.verifier = Verifier(adapter)
+            self.observer = Observer(adapter)
 
         # The scope for agents is now derived from the code graph
         scope = [item.path for item in code_graph.manifest]
@@ -179,17 +184,18 @@ class Coordinator:
                 # If we've exhausted the budget, break the loop for real.
                 if n >= N_star - 1:
                     final_result = {"status": "failed", "reason": f"Exceeded entropy budget (N*={N_star})."}
-                    # One last chance for human intervention
-                    human_context = {
-                        "failing_tests": observer_report.get("failing_tests", []),
-                        "logs": observer_report.get("logs", "No logs available."),
-                        "last_failed_patch": analyst_report.get("patch_bundle", {}).get(
-                            analyst_report.get("files_changed", [""])[0]
-                        )
-                    }
-                    human_hint = request_human_feedback(human_context)
-                    # This hint is for the user/supervisor, not for a retry
-                    final_result["human_suggestion"] = human_hint
+                    if self.interactive_mode:
+                        # One last chance for human intervention
+                        human_context = {
+                            "failing_tests": observer_report.get("failing_tests", []),
+                            "logs": observer_report.get("logs", "No logs available."),
+                            "last_failed_patch": analyst_report.get("patch_bundle", {}).get(
+                                analyst_report.get("files_changed", [""])[0]
+                            )
+                        }
+                        human_hint = request_human_feedback(human_context)
+                        # This hint is for the user/supervisor, not for a retry
+                        final_result["human_suggestion"] = human_hint
                     break
 
                 state = "PATCH"

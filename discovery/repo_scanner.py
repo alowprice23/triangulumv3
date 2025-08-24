@@ -47,6 +47,14 @@ class RepoScanner:
                 buf = f.read(65536)
         return hasher.hexdigest()
 
+    def _count_lines_of_code(self, file_path: Path) -> int:
+        """Counts the number of lines in a text file."""
+        try:
+            with file_path.open("r", encoding="utf-8", errors="ignore") as f:
+                return sum(1 for _ in f)
+        except Exception:
+            return 0
+
     def scan(self, project_root: Path) -> List[Dict[str, Any]]:
         """
         Scans a repository and returns a manifest of files. Uses a cache
@@ -72,10 +80,20 @@ class RepoScanner:
                             # Use cached data
                             file_info = cached_file
                         else:
-                            # File is new or modified, re-hash and update cache
+                            # File is new or modified, re-process
                             file_hash = self._hash_file(path)
-                            file_info = {"path": relative_path_str, "hash": file_hash, "mtime": mtime}
+                            loc = self._count_lines_of_code(path)
+                            file_info = {
+                                "path": relative_path_str,
+                                "hash": file_hash,
+                                "mtime": mtime,
+                                "loc": loc
+                            }
                             self.cache[relative_path_str] = file_info
+
+                        # Ensure 'loc' is present for cached files too
+                        if "loc" not in file_info:
+                            file_info["loc"] = self._count_lines_of_code(path)
 
                         manifest.append(file_info)
                     except FileNotFoundError:

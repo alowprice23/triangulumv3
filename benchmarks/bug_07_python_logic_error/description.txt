@@ -1,0 +1,1 @@
+The function `check_shipping_cost` in `main.py` has a logic error. It is supposed to provide free shipping for orders of $100 or more, but it only does so for orders strictly greater than $100. An order of exactly $100 is incorrectly charged for shipping. The test `test_shipping_for_exact_total` is failing.

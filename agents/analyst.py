@@ -20,8 +20,8 @@ class Analyst:
     memory for similar past fixes, and proposes a patch.
     (README.md, §2, "Three Core Agent Archetypes")
     """
-    def __init__(self):
-        self.llm_config = LLMConfig() # This will eventually be loaded from a global config
+    def __init__(self, llm_config: LLMConfig | None = None):
+        self.llm_config = llm_config or LLMConfig()
         self.llm_client = self.llm_config.get_client()
         self.kb = PatchMotifLibrary()
 

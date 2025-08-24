@@ -1,0 +1,1 @@
+The function `get_config_value` in `main.py` fails with a `KeyError` when trying to access a dictionary key that does not exist. The function should be modified to return a default string "Value is default" when the key is missing. The test `test_get_missing_key` is failing.

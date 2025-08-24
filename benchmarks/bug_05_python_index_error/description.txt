@@ -1,0 +1,1 @@
+The function `get_last_element` in `main.py` fails with an `IndexError: list index out of range` when an empty list is passed to it. The function should be modified to return `None` when the input list is empty. The test `test_get_last_element_with_empty_list` is failing.

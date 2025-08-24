@@ -1,18 +1,20 @@
-import subprocess
 import json
 from pathlib import Path
 import tempfile
 from typing import Dict, Any
-import os
-import shlex
+import docker
+import logging
+
+logger = logging.getLogger(__name__)
+TEST_RUNNER_IMAGE = "triangulum-test-runner"
 
 def run_test_command(
     repo_root: Path,
     command: str
 ) -> Dict[str, Any]:
     """
-    Runs a test command in a subprocess and returns a structured JSON report.
-    This runner expects the command to generate a JSON report for parsing.
+    Runs a test command inside a secure, isolated Docker container and returns
+    a structured JSON report.
 
     Args:
         repo_root: The root directory of the repository where the command will be run.
@@ -22,50 +24,77 @@ def run_test_command(
         A dictionary containing the parsed JSON report from the test runner.
         Returns an error dictionary if the test execution fails.
     """
-    # We add a placeholder to the command for the report file path.
-    # The adapter is responsible for knowing where to put this placeholder.
-    report_file = Path(tempfile.gettempdir()) / f"test_report_{os.getpid()}.json"
-
-    # Replace the placeholder with the actual path.
-    # This makes the runner flexible for different test frameworks (e.g., jest's --outputFile).
-    final_command = command.replace("{report_file}", str(report_file))
-
-    env = os.environ.copy()
-    # Add repo_root to PYTHONPATH for Python projects. This is a bit of a
-    # leaky abstraction but is a simple way to handle many Python pathing issues.
-    env["PYTHONPATH"] = str(repo_root) + os.pathsep + env.get("PYTHONPATH", "")
-
     try:
-        # Use shlex.split to handle command strings with quotes correctly
-        process = subprocess.run(
-            shlex.split(final_command),
-            cwd=repo_root,
-            capture_output=True,
-            text=True,
-            check=False,
-            env=env,
+        client = docker.from_env()
+        # Verify the test runner image exists
+        client.images.get(TEST_RUNNER_IMAGE)
+    except docker.errors.ImageNotFound:
+        logger.error(f"Test runner Docker image not found: {TEST_RUNNER_IMAGE}")
+        logger.error("Please build it first by running: docker build -t triangulum-test-runner -f test-runner.Dockerfile .")
+        return {"error": f"Docker image {TEST_RUNNER_IMAGE} not found."}
+    except docker.errors.DockerException as e:
+        logger.error(f"Docker is not running or accessible: {e}")
+        return {"error": "Docker daemon is not running or accessible."}
+
+    # Create a temporary file on the host to store the report
+    with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix=".json") as report_file_obj:
+        host_report_path = Path(report_file_obj.name)
+
+    container_report_path = "/tmp/test_report.json"
+    final_command = command.replace("{report_file}", container_report_path)
+
+    # The project directory will be mounted at /app inside the container
+    # The WORKDIR in the Dockerfile is /app
+    volume_mount = {str(repo_root.resolve()): {'bind': '/app', 'mode': 'rw'}}
+
+    container = None
+    try:
+        logger.info(f"Running command in container: {final_command}")
+        container = client.containers.run(
+            TEST_RUNNER_IMAGE,
+            command=final_command,
+            volumes=volume_mount,
+            working_dir="/app",
+            detach=True,
         )
 
-        if not report_file.exists():
+        # Wait for the container to finish, with a timeout
+        result = container.wait(timeout=300) # 5-minute timeout
+        exit_code = result.get("StatusCode", 1)
+
+        # Retrieve the report file from the container
+        try:
+            bits, stat = container.get_archive(container_report_path)
+            # The bits is a tarball stream, we need to extract the file content
+            import tarfile
+            import io
+
+            with tarfile.open(fileobj=io.BytesIO(b"".join(bits))) as tar:
+                report_content = tar.extractfile(tar.getmembers()[0]).read().decode('utf-8')
+
+            report_data = json.loads(report_content)
+            report_data["exit_code"] = exit_code
+            return report_data
+
+        except docker.errors.NotFound:
+             # This happens if the test command failed before creating the report
+            stdout = container.logs(stdout=True, stderr=False).decode('utf-8')
+            stderr = container.logs(stdout=False, stderr=True).decode('utf-8')
             return {
-                "error": "Test report file not generated.",
-                "exit_code": process.returncode,
-                "stdout": process.stdout,
-                "stderr": process.stderr
+                "error": "Test report file not generated inside the container.",
+                "exit_code": exit_code,
+                "stdout": stdout,
+                "stderr": stderr
             }
 
-        with open(report_file, 'r') as f:
-            report_data = json.load(f)
-
-        report_data["exit_code"] = process.returncode
-
-        return report_data
-
-    except FileNotFoundError as e:
-        # This error now refers to the primary executable in the command (e.g., 'pytest', 'jest')
-        return {"error": f"Command not found: {e.filename}. Is it installed and in your PATH?"}
-    except json.JSONDecodeError:
-        return {"error": f"Failed to parse test report JSON from {report_file}."}
+    except docker.errors.ContainerError as e:
+        logger.error(f"Container execution failed: {e}")
+        return {"error": "Container execution failed.", "details": str(e)}
+    except Exception as e:
+        logger.error(f"An unexpected error occurred during containerized test run: {e}", exc_info=True)
+        return {"error": "An unexpected error occurred."}
     finally:
-        if report_file.exists():
-            report_file.unlink()
+        if container:
+            container.remove(force=True)
+        if host_report_path.exists():
+            host_report_path.unlink()
