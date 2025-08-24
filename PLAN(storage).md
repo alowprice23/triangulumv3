@@ -99,10 +99,10 @@ The testing strategy for the `storage/` directory should be particularly rigorou
 
 ## 9. Implementation Checklist (Bound to FILEMAP)
 
-1.  Implement `storage/crc.py`.
-2.  Implement `storage/wal.py`.
-3.  Implement `storage/snapshot.py`.
-4.  Implement `storage/recovery.py`.
+1.  Implement `storage/crc.py`. - PENDING (Out of scope for initial local-only implementation)
+2.  Implement `storage/wal.py`. - PENDING (Out of scope for initial local-only implementation)
+3.  Implement `storage/snapshot.py`. - PENDING (Out of scope for initial local-only implementation)
+4.  Implement `storage/recovery.py`. - PENDING (Out of scope for initial local-only implementation)
 
 ## 10. Information-Gap Log (Do Not Invent)
 

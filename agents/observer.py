@@ -30,7 +30,7 @@ class Observer:
         logger.info("Observer: Running tests to find an initial failure...")
         # Initially, run all tests to see what fails by passing an empty list of targets.
         initial_test_command = self.adapter.get_test_command(test_targets=[])
-        initial_report = tooling.test_runner.run_test_command(repo_root, initial_test_command)
+        initial_report = tooling.test_runner.run_tests(repo_root=repo_root, pytest_args=initial_test_command)
 
         if initial_report.get("error"):
             return {"error": "Failed to run tests.", "details": initial_report}

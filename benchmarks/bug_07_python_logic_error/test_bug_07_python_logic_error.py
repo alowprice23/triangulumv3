@@ -1,4 +1,4 @@
-from main import check_shipping_cost
+from .main import check_shipping_cost
 import pytest
 
 def test_shipping_for_low_total():

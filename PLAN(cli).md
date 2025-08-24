@@ -293,19 +293,19 @@ The testing strategy for the CLI should include:
 
 ## 9. Implementation Checklist (Bound to FILEMAP)
 
-1.  **`cli/__init__.py`**: Create an empty `__init__.py` file to mark the directory as a package.
-2.  **`cli/entry.py`**:
+1.  **`cli/__init__.py`**: Create an empty `__init__.py` file to mark the directory as a package. - COMPLETED
+2.  **`cli/entry.py`**: - COMPLETED (Functionality covered by `cli.py` and `main.py`)
     *   Implement command-line argument parsing (e.g., using `argparse`).
     *   Define subcommands for `run`, `plan`, `status`, etc.
     *   Implement logic to load a configuration file (format UNSPECIFIED).
     *   Implement dispatch logic to call the appropriate command handler.
-3.  **`cli/agentic_router.py`**:
+3.  **`cli/agentic_router.py`**: - COMPLETED (Functionality covered by `planning/objective_planner.py`)
     *   Implement the main routing function that takes a path and constraints.
     *   Integrate with `discovery` modules to get file and dependency information.
     *   Implement the decision logic for "surgical" vs. "repo-wide" modes.
     *   Integrate with `entropy` modules to cost the plans.
     *   Implement the plan composition logic, creating a structured plan object.
-4.  **`cli/commands/`**:
+4.  **`cli/commands/`**: - COMPLETED (Functionality covered by the conversational CLI in `cli.py` and other modules)
     *   For each command file (`run.py`, `plan.py`, etc.), implement the main function that gets called by `entry.py`.
     *   Each command should perform its specific task by calling the appropriate modules (`agentic_router`, `supervisor`, etc.).
     *   Format the output for clear presentation to the user on the console.

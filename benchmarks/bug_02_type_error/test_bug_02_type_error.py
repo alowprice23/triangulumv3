@@ -1,4 +1,4 @@
-from main import process_data
+from .main import process_data
 
 def test_process_with_string():
   # This test will fail because it passes a string instead of a dict

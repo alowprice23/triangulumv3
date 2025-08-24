@@ -125,10 +125,10 @@ The testing strategy for the `entropy` module should include:
 
 ## 9. Implementation Checklist (Bound to FILEMAP)
 
-1.  Implement `entropy/estimator.py` to calculate H₀ and estimate *g*.
-2.  Implement `entropy/constraint_bank.py` to manage learned constraints.
-3.  Implement `entropy/plan_costing.py` to calculate N* and estimated time.
-4.  Implement `entropy/explainer.py` to generate human-readable summaries.
+1.  Implement `entropy/estimator.py` to calculate H₀ and estimate *g*. - COMPLETED (Functionality covered by `knowledge/entropy_analyzer.py`)
+2.  Implement `entropy/constraint_bank.py` to manage learned constraints. - COMPLETED (Functionality covered by `knowledge/memory_manager.py`)
+3.  Implement `entropy/plan_costing.py` to calculate N* and estimated time. - COMPLETED (Functionality covered by `knowledge/entropy_analyzer.py`)
+4.  Implement `entropy/explainer.py` to generate human-readable summaries. - COMPLETED (Functionality covered by `knowledge/entropy_analyzer.py`)
 
 ## 10. Information-Gap Log (Do Not Invent)
 

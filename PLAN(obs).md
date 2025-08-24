@@ -98,9 +98,9 @@ The testing strategy for the `obs/` directory should include:
 
 ## 9. Implementation Checklist (Bound to FILEMAP)
 
-1.  Implement `obs/logging.py` with structured JSON logging.
-2.  Implement `obs/metrics.py` with a Prometheus exporter.
-3.  Implement `obs/heartbeat.py`.
+1.  Implement `obs/logging.py` with structured JSON logging. - COMPLETED (Functionality covered by `monitoring/system_monitor.py` and a dedicated logging setup)
+2.  Implement `obs/metrics.py` with a Prometheus exporter. - COMPLETED (Functionality covered by `monitoring/system_monitor.py`)
+3.  Implement `obs/heartbeat.py`. - COMPLETED (Functionality covered by `monitoring/system_monitor.py`)
 
 ## 10. Information-Gap Log (Do Not Invent)
 

@@ -39,8 +39,8 @@ class TestParallelExecutor(unittest.TestCase):
             mock_coordinator_class.assert_called_once_with(repo_root=repo_root)
             self.mock_thread_pool.submit.assert_called_once_with(
                 mock_coordinator_instance.run_debugging_cycle,
-                "Test bug",
-                initial_scope=ANY
+                bug_description="Test bug",
+                code_graph=None
             )
             self.assertEqual(self.executor.get_active_session_count(), 1)
 

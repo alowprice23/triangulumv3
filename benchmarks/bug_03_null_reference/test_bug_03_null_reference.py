@@ -1,4 +1,4 @@
-from main import get_greeting, User
+from .main import get_greeting, User
 
 def test_greeting_with_none():
   # This test will fail with an AttributeError

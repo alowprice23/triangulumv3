@@ -26,7 +26,8 @@ class SourceTestMapper:
     def locate_tests(
         self,
         all_files: List[str],
-        repo_root: Path
+        repo_root: Path,
+        language: Optional[str] = None
     ) -> Dict[str, Optional[str]]:
         """
         Creates a mapping from source files to their test files.
@@ -34,12 +35,17 @@ class SourceTestMapper:
         Args:
             all_files: A list of all file paths in the repository.
             repo_root: The root path of the repository.
+            language: The primary language of the repository. If not provided,
+                      it will be probed.
 
         Returns:
             A dictionary mapping each source file to its test file, if found.
         """
-        all_file_paths = [repo_root / f for f in all_files]
-        primary_language = probe_language(all_file_paths)
+        if language:
+            primary_language = language
+        else:
+            all_file_paths = [repo_root / f for f in all_files]
+            primary_language = probe_language(all_file_paths)
 
         adapter = self.adapters.get(primary_language)
         if not adapter:
@@ -75,3 +81,22 @@ class SourceTestMapper:
         mapping = self.locate_tests(all_files, repo_root)
         test_file = mapping.get(source_file)
         return [test_file] if test_file else []
+
+    def map_test_to_source(self, test_file: str, all_files: List[str], repo_root: Path, language: Optional[str] = None) -> Optional[str]:
+        """
+        Finds the corresponding source file for a given test file.
+
+        Args:
+            test_file: The path to the test file.
+            all_files: A list of all file paths in the repository.
+            repo_root: The root path of the repository.
+            language: The primary language of the repository.
+
+        Returns:
+            The path to the source file, if found.
+        """
+        mapping = self.locate_tests(all_files, repo_root, language=language)
+        for source, test in mapping.items():
+            if test == test_file:
+                return source
+        return None

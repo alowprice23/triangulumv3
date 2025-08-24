@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Session:
     """Holds the context for a single, actively running bug-fixing session."""
-    bug_id: str
+    ticket: BugTicket
     future: Future
 
 class ParallelExecutor:
@@ -49,7 +49,7 @@ class ParallelExecutor:
             code_graph=ticket.code_graph
         )
 
-        session = Session(bug_id=ticket.bug_id, future=future)
+        session = Session(ticket=ticket, future=future)
         self._active_sessions[ticket.bug_id] = session
         return True
 

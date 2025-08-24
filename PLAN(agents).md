@@ -123,13 +123,13 @@ The testing strategy for the `agents/` directory should involve:
 
 ## 9. Implementation Checklist (Bound to FILEMAP)
 
-1.  Implement `agents/llm_config.py` and `agents/prompts.py`.
-2.  Implement the `agents/observer.py` agent.
-3.  Implement the `agents/analyst.py` agent.
-4.  Implement the `agents/verifier.py` agent.
-5.  Implement the `agents/coordinator.py` to orchestrate the O→A→V cycle.
-6.  Implement `agents/memory.py` for cross-case learning.
-7.  Implement `agents/meta_tuner.py` for self-optimization.
+1.  Implement `agents/llm_config.py` and `agents/prompts.py`. - COMPLETED
+2.  Implement the `agents/observer.py` agent. - COMPLETED
+3.  Implement the `agents/analyst.py` agent. - COMPLETED
+4.  Implement the `agents/verifier.py` agent. - COMPLETED
+5.  Implement the `agents/coordinator.py` to orchestrate the O→A→V cycle. - COMPLETED
+6.  Implement `agents/memory.py` for cross-case learning. - COMPLETED
+7.  Implement `agents/meta_tuner.py` for self-optimization. - COMPLETED (renamed to `meta_agent.py`)
 
 ## 10. Information-Gap Log (Do Not Invent)
 

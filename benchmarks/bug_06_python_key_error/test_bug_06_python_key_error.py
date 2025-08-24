@@ -1,4 +1,4 @@
-from main import get_config_value
+from .main import get_config_value
 import pytest
 
 def test_get_existing_key():

@@ -76,9 +76,9 @@ The testing strategy for the `api/` directory should involve:
 
 ## 9. Implementation Checklist (Bound to FILEMAP)
 
-1.  Implement `api/llm_router.py`.
-2.  Implement `api/vcs.py`.
-3.  Implement `api/ci.py`.
+1.  Implement `api/llm_router.py`. - COMPLETED (Functionality covered by `api/llm_integrations.py`)
+2.  Implement `api/vcs.py`. - PENDING (Out of scope for initial local-only implementation)
+3.  Implement `api/ci.py`. - PENDING (Out of scope for initial local-only implementation)
 
 ## 10. Information-Gap Log (Do Not Invent)
 

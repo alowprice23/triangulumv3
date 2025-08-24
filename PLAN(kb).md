@@ -85,9 +85,9 @@ The testing strategy for the `kb/` directory should include unit tests for each 
 
 ## 9. Implementation Checklist (Bound to FILEMAP)
 
-1.  Implement `kb/constraint_store.py`.
-2.  Implement `kb/lineage.py`.
-3.  Implement `kb/manifest_store.py`.
+1.  Implement `kb/constraint_store.py`. - COMPLETED (Functionality covered by `knowledge/memory_manager.py`)
+2.  Implement `kb/lineage.py`. - COMPLETED (Functionality covered by `knowledge/memory_manager.py`)
+3.  Implement `kb/manifest_store.py`. - COMPLETED (Functionality covered by `knowledge/memory_manager.py`)
 
 ## 10. Information-Gap Log (Do Not Invent)
 

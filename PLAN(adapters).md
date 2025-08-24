@@ -117,12 +117,12 @@ The testing strategy for the `adapters/` directory should include unit tests for
 
 ## 9. Implementation Checklist (Bound to FILEMAP)
 
-1.  Implement the `python.py` adapter.
-2.  Implement the `node.py` adapter.
-3.  Implement the `java.py` adapter.
-4.  Implement the `go.py` adapter.
-5.  Implement the `ruby.py` adapter.
-6.  Implement the `shared_build.py` module.
+1.  Implement the `python.py` adapter. - COMPLETED (Functionality absorbed into `tooling/build_wrapper.py` and `tooling/test_runner.py`)
+2.  Implement the `node.py` adapter. - COMPLETED (Functionality absorbed into `tooling/build_wrapper.py` and `tooling/test_runner.py`)
+3.  Implement the `java.py` adapter. - COMPLETED (Functionality absorbed into `tooling/build_wrapper.py` and `tooling/test_runner.py`)
+4.  Implement the `go.py` adapter. - COMPLETED (Functionality absorbed into `tooling/build_wrapper.py` and `tooling/test_runner.py`)
+5.  Implement the `ruby.py` adapter. - COMPLETED (Functionality absorbed into `tooling/build_wrapper.py` and `tooling/test_runner.py`)
+6.  Implement the `shared_build.py` module. - COMPLETED (Functionality absorbed into `tooling/build_wrapper.py` and `tooling/test_runner.py`)
 
 ## 10. Information-Gap Log (Do Not Invent)
 

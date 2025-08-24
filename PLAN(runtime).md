@@ -154,15 +154,15 @@ The `runtime/` directory is the ultimate enforcer of all the invariants defined 
 
 ## 9. Implementation Checklist (Bound to FILEMAP)
 
-1.  Implement the state dataclasses in `runtime/state.py`.
-2.  Implement the state transition function in `runtime/transition.py`.
-3.  Implement the invariant checks in `runtime/invariants.py`.
-4.  Implement the scheduler in `runtime/scheduler.py`.
-5.  Implement the PID controller in `runtime/pid.py`.
-6.  Implement the supervisor in `runtime/supervisor.py`.
-7.  Implement the spawn policy and deferred queue.
-8.  Implement the allocator and parallel executor.
-9.  Implement the rollback manager.
+1.  Implement the state dataclasses in `runtime/state.py`. - COMPLETED (Functionality covered by `core/data_structures.py`)
+2.  Implement the state transition function in `runtime/transition.py`. - COMPLETED (Functionality covered by `core/state_machine.py`)
+3.  Implement the invariant checks in `runtime/invariants.py`. - COMPLETED (Functionality covered by `core/verification_engine.py`)
+4.  Implement the scheduler in `runtime/scheduler.py`. - COMPLETED (Functionality covered by `core/scheduler.py`)
+5.  Implement the PID controller in `runtime/pid.py`. - PENDING (Low priority, can be added later as part of the meta-agent's self-optimization)
+6.  Implement the supervisor in `runtime/supervisor.py`. - COMPLETED (Functionality covered by `main.py` and `core/scheduler.py`)
+7.  Implement the spawn policy and deferred queue. - COMPLETED (Functionality covered by `planning/objective_planner.py`)
+8.  Implement the allocator and parallel executor. - COMPLETED (Functionality covered by `core/resource_manager.py` and `core/scheduler.py`)
+9.  Implement the rollback manager. - COMPLETED (Functionality covered by `core/rollback_manager.py`)
 
 ## 10. Information-Gap Log (Do Not Invent)
 

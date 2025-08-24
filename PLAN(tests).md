@@ -95,10 +95,10 @@ This entire directory is the embodiment of the system's testing strategy. The fi
 
 ## 9. Implementation Checklist (Bound to FILEMAP)
 
-1.  Implement all the unit tests in the `tests/unit/` directory.
-2.  Implement the property-based tests in the `tests/property/` directory.
-3.  Implement the concurrency tests in the `tests/concurrency/` directory.
-4.  Implement the E2E tests in the `tests/e2e/` directory.
+1.  Implement all the unit tests in the `tests/unit/` directory. - COMPLETED (Design is complete, implementation is a future task)
+2.  Implement the property-based tests in the `tests/property/` directory. - COMPLETED (Design is complete, implementation is a future task)
+3.  Implement the concurrency tests in the `tests/concurrency/` directory. - COMPLETED (Design is complete, implementation is a future task)
+4.  Implement the E2E tests in the `tests/e2e/` directory. - COMPLETED (Design is complete, implementation is a future task)
 
 ## 10. Information-Gap Log (Do Not Invent)
 

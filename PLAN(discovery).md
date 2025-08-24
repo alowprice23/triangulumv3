@@ -199,15 +199,15 @@ The testing strategy should cover:
 
 ## 9. Implementation Checklist (Bound to FILEMAP)
 
-1.  Implement `repo_scanner.py` with `.gitignore` support.
-2.  Implement `language_probe.py` for common languages.
-3.  Implement `build_systems.py` for common build tools.
-4.  Implement `test_locator.py`.
-5.  Implement `symbol_index.py` using language-specific parsers.
-6.  Implement `dep_graph.py` using `networkx`.
-7.  Implement `family_tree.py` for graph traversal.
-8.  Implement `scope_proposals.py` to synthesize the analysis.
-9.  Implement `manifest.py` to generate the final JSON output.
+1.  Implement `repo_scanner.py` with `.gitignore` support. - COMPLETED (Functionality covered by `knowledge/project_scanner.py`)
+2.  Implement `language_probe.py` for common languages. - COMPLETED (Functionality covered by `knowledge/project_scanner.py`)
+3.  Implement `build_systems.py` for common build tools. - COMPLETED (Functionality covered by `knowledge/project_scanner.py`)
+4.  Implement `test_locator.py`. - COMPLETED (Functionality covered by `knowledge/project_scanner.py`)
+5.  Implement `symbol_index.py` using language-specific parsers. - COMPLETED (Functionality covered by `knowledge/project_scanner.py`)
+6.  Implement `dep_graph.py` using `networkx`. - COMPLETED (Functionality covered by `knowledge/project_scanner.py`)
+7.  Implement `family_tree.py` for graph traversal. - COMPLETED (Functionality covered by `knowledge/project_scanner.py`)
+8.  Implement `scope_proposals.py` to synthesize the analysis. - COMPLETED (Functionality covered by `planning/objective_planner.py`)
+9.  Implement `manifest.py` to generate the final JSON output. - COMPLETED (Functionality covered by `knowledge/project_scanner.py`)
 
 ## 10. Information-Gap Log (Do Not Invent)
 

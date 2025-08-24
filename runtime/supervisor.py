@@ -112,9 +112,13 @@ class Supervisor:
                 metrics.BUGS_FIXED_FAILURE.labels(reason=failure_reason).inc()
 
             # Record duration
-            start_time_ns = int(float(bug_id))
-            duration_s = (time.time_ns() - start_time_ns) / 1e9
-            metrics.BUG_FIX_DURATION_SECONDS.observe(duration_s)
+            try:
+                start_time_ns = int(float(bug_id))
+                duration_s = (time.time_ns() - start_time_ns) / 1e9
+                metrics.BUG_FIX_DURATION_SECONDS.observe(duration_s)
+            except ValueError:
+                # bug_id is not a timestamp, so we can't calculate duration.
+                pass
 
         # 2. Update gauges
         active_sessions_count = self.executor.get_active_session_count()
@@ -150,7 +154,7 @@ class Supervisor:
         return {
             "scheduler_tickets": [p_item.item.to_dict() for p_item in self.scheduler._queue],
             "active_sessions": {
-                bug_id: {"description": session.future.arg_description} # A bit of a hack to get desc
+                bug_id: {"description": session.ticket.description}
                 for bug_id, session in self.executor._active_sessions.items()
             }
         }
@@ -183,10 +187,3 @@ class Supervisor:
 def ticket_to_dict(self):
     return {"bug_id": self.bug_id, "severity": self.severity, "description": self.description}
 BugTicket.to_dict = ticket_to_dict
-
-# A bit of a hack to get the description for snapshotting
-def get_arg_description(self, *args, **kwargs):
-    return args[0] if args else kwargs.get('description', 'N/A')
-
-from concurrent.futures import Future
-Future.arg_description = property(get_arg_description)

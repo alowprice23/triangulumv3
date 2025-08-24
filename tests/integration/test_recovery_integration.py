@@ -41,8 +41,11 @@ class TestRecoveryIntegration(unittest.TestCase):
             # Submit and launch Bug A
             ticket_a = supervisor1.submit_bug("bug_A", 1)
             supervisor1.tick()
-            mock_session = MagicMock()
-            mock_session.future.arg_description = "bug_A"
+
+            # Create a mock session object that looks like the real one
+            from runtime.parallel_executor import Session
+            mock_future = MagicMock()
+            mock_session = Session(ticket=ticket_a, future=mock_future)
             mock_executor._active_sessions = {ticket_a.bug_id: mock_session}
 
             # Submit Bug B

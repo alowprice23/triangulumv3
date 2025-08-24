@@ -47,7 +47,15 @@ class Analyst:
         click.echo("Analyst: Analyzing failing tests and logs...")
 
         failing_test_path_str = observer_report["failing_tests"][0].split("::")[0]
-        source_file_path_str = failing_test_path_str.replace("tests/test_", "")
+
+        # Use the SourceTestMapper to find the corresponding source file.
+        from discovery.test_locator import SourceTestMapper
+        mapper = SourceTestMapper()
+        all_files = [file.path for file in code_graph.manifest]
+        source_file_path_str = mapper.map_test_to_source(failing_test_path_str, all_files, repo_root, language=code_graph.language)
+
+        if not source_file_path_str:
+            return {"status": "error", "message": f"Could not find source file for test: {failing_test_path_str}"}
 
         try:
             failing_test_content = (repo_root / failing_test_path_str).read_text()

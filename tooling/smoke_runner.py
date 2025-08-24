@@ -20,8 +20,9 @@ def run_smoke_tests(repo_root: Path) -> Dict[str, Any]:
     # 1. Try pytest with marker
     pytest_result = run_tests(repo_root=repo_root, pytest_args=["-m", "smoke"])
 
-    # Pytest exit code 5 means no tests were collected
-    if pytest_result.get("exit_code") != 5:
+    # Check if any tests were collected. The exit code can be 5 (no tests collected)
+    # or 0 if tests were collected but all were deselected.
+    if pytest_result.get("summary", {}).get("total", 0) > 0:
         return {
             "runner": "pytest",
             "result": pytest_result

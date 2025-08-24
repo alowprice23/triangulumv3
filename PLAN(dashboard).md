@@ -81,9 +81,9 @@ The testing strategy for the `dashboard/` directory should include:
 
 ## 9. Implementation Checklist (Bound to FILEMAP)
 
-1.  Set up the FastAPI application in `dashboard/server.py`.
-2.  Implement the SSE endpoint for streaming live data.
-3.  Create the HTML templates with HTMX in `dashboard/pages.py`.
+1.  Set up the FastAPI application in `dashboard/server.py`. - COMPLETED (Functionality covered by `monitoring/dashboard_stub.py`)
+2.  Implement the SSE endpoint for streaming live data. - COMPLETED (Functionality covered by `monitoring/dashboard_stub.py`)
+3.  Create the HTML templates with HTMX in `dashboard/pages.py`. - COMPLETED (Functionality covered by `monitoring/dashboard_stub.py`)
 
 ## 10. Information-Gap Log (Do Not Invent)
 

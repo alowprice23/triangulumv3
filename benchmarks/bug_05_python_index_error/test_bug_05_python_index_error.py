@@ -1,4 +1,4 @@
-from main import get_last_element
+from .main import get_last_element
 import pytest
 
 def test_get_last_element_with_items():

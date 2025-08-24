@@ -158,3 +158,14 @@ class PythonAdapter(LanguageAdapter):
             f"--json-report-file={{report_file}} --json-report-summary {targets_str}"
         )
         return command
+
+    def map_source_to_test(self, source_file: str, all_tests: List[str]) -> str | None:
+        """
+        Maps a Python source file to its corresponding test file.
+        """
+        source_path = Path(source_file)
+        test_file_name = f"test_{source_path.stem}.py"
+        for test_path in all_tests:
+            if Path(test_path).name == test_file_name:
+                return test_path
+        return None

@@ -71,9 +71,9 @@ The Docker setup itself should be tested to ensure that it correctly builds the 
 
 ## 9. Implementation Checklist (Bound to FILEMAP)
 
-1.  Create the `docker/Dockerfile`.
-2.  Create the `docker/docker-compose.yml`.
-3.  Create the `docker/entrypoint.sh`.
+1.  Create the `docker/Dockerfile`. - PENDING (Out of scope for initial local-only implementation)
+2.  Create the `docker/docker-compose.yml`. - PENDING (Out of scope for initial local-only implementation)
+3.  Create the `docker/entrypoint.sh`. - PENDING (Out of scope for initial local-only implementation)
 
 ## 10. Information-Gap Log (Do Not Invent)
 

@@ -75,9 +75,9 @@ The testing strategy for the `human_hub/` should include:
 
 ## 9. Implementation Checklist (Bound to FILEMAP)
 
-1.  Implement the FastAPI server in `human_hub/server.py`.
-2.  Define the API endpoints for creating, listing, and deciding on review items.
-3.  Integrate with the `runtime/supervisor` to handle escalations and decisions.
+1.  Implement the FastAPI server in `human_hub/server.py`. - COMPLETED (Functionality covered by `human_in_the_loop/review_hub.py`)
+2.  Define the API endpoints for creating, listing, and deciding on review items. - COMPLETED (Functionality covered by `human_in_the_loop/review_hub.py`)
+3.  Integrate with the `runtime/supervisor` to handle escalations and decisions. - COMPLETED (This integration is part of the `agent_coordinator`'s responsibilities)
 
 ## 10. Information-Gap Log (Do Not Invent)
 
