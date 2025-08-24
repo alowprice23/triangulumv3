@@ -50,7 +50,14 @@ class TestApi(unittest.TestCase):
         self.assertEqual(response.json(), {"message": "Bug ticket submitted successfully."})
 
         # Verify that the supervisor's method was called correctly
-        mock_supervisor.submit_bug.assert_called_once_with("A new bug", 7)
+        mock_supervisor.submit_bug.assert_called_once_with("A new bug", 7, code_graph=None)
+
+    def test_metrics_endpoint(self):
+        """Test the /metrics endpoint."""
+        response = self.client.get("/metrics")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("text/plain", response.headers["content-type"])
+        self.assertIn("python_info", response.text)
 
 if __name__ == '__main__':
     unittest.main()

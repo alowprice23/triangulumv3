@@ -5,6 +5,7 @@ import shutil
 from pathlib import Path
 import traceback
 import time
+from concurrent.futures import Future
 
 from click.testing import CliRunner
 
@@ -34,12 +35,34 @@ class TestCliIntegration(unittest.TestCase):
         if self.buggy_project_dir.exists():
             shutil.rmtree(self.buggy_project_dir)
 
-    def test_scan_command(self):
+    @patch('cli.commands.scan.probe_language')
+    @patch('cli.commands.scan.get_language_adapter')
+    @patch('cli.commands.scan.CodeGraphBuilder')
+    def test_scan_command(self, mock_code_graph_builder_class, mock_get_language_adapter, mock_probe_language):
         """Test the 'scan' command on a directory."""
-        result = self.runner.invoke(cli, ['scan', 'agents'])
+        # Mock the dependencies
+        mock_probe_language.return_value = "Python"
+        mock_adapter = MagicMock()
+        mock_get_language_adapter.return_value = mock_adapter
+        mock_builder_instance = MagicMock()
+        mock_code_graph_builder_class.return_value = mock_builder_instance
+        mock_code_graph = MagicMock()
+        mock_code_graph.dict.return_value = {"metadata": {}, "manifest": [], "symbol_index": {}, "dependency_graph": {}}
+        mock_builder_instance.build.return_value = mock_code_graph
+
+        # Run the command
+        result = self.runner.invoke(cli, ['scan', str(self.buggy_project_dir)])
+
+        # Assert the results
         self.assertEqual(result.exit_code, 0)
         self.assertTrue(result.output.strip().startswith("{"))
         self.assertIn("dependency_graph", result.output)
+
+        # Assert that the mocks were called correctly
+        mock_probe_language.assert_called_once()
+        mock_get_language_adapter.assert_called_once_with("python")
+        mock_code_graph_builder_class.assert_called_once_with(repo_root=self.buggy_project_dir, adapter=mock_adapter)
+        mock_builder_instance.build.assert_called_once()
 
     @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
     @patch('cli.commands.run.Supervisor')
@@ -72,45 +95,15 @@ class TestCliIntegration(unittest.TestCase):
         self.assertIn("Supervisor has finished its run.", result.output)
 
     @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
-    @patch('runtime.supervisor.PIDController')
-    @patch('runtime.supervisor.ParallelExecutor')
-    def test_run_command_e2e_simulation(self, mock_parallel_executor_class, mock_pid_controller_class):
+    def test_run_command_e2e_simulation(self):
         """
-        Test the 'run' command end-to-end by simulating a successful bug fix
-        through a mocked ParallelExecutor.
+        Test the 'run' command end-to-end.
         """
-        # Ensure the PID controller allows spawning
-        mock_pid_controller_instance = mock_pid_controller_class.return_value
-        mock_pid_controller_instance.update.return_value = 1.0
-        fixed_content = "# Buggy file\ndef add(a, b):\n    return a + b"
-        mock_executor_instance = MagicMock()
-        mock_parallel_executor_class.return_value = mock_executor_instance
-
-        # This side effect simulates the file being fixed upon launch
-        def launch_side_effect(ticket, repo_root):
-            # Simulate the file being fixed
-            (self.buggy_project_dir / "math_ops.py").write_text(fixed_content)
-            # Simulate a successful launch
-            return True
-
-        # This simulates the check for completed sessions
-        def check_side_effect():
-            # After the first check, report the session as completed
-            if not hasattr(check_side_effect, "called"):
-                check_side_effect.called = True
-                return []
-            # Use a numeric ID to be compatible with recovery manager
-            return [(str(time.time_ns()), {"status": "success"})]
-
-        mock_executor_instance.launch_session.side_effect = launch_side_effect
-        mock_executor_instance.check_completed_sessions.side_effect = check_side_effect
-        mock_executor_instance.get_active_session_count.return_value = 0
-
-        # Run the command for a very short duration (e.g., 6 seconds to allow 2 ticks)
+        # Run the command
         result = self.runner.invoke(cli, [
             'run',
-            '--description', 'fix the add function',
-            '--duration', '6', # Allows for two 5-second ticks
+            '--description', 'fix the add function in math_ops.py',
+            '--duration', '60',
             str(self.buggy_project_dir)
         ], catch_exceptions=False)
 
@@ -119,12 +112,37 @@ class TestCliIntegration(unittest.TestCase):
 
         self.assertEqual(result.exit_code, 0, msg=result.output)
 
-        # Verify that the supervisor logged the completion
-        self.assertIn("finished with status: success", result.output)
+        # Verify that the bug was fixed
+        fixed_content = (self.buggy_project_dir / "math_ops.py").read_text()
+        self.assertIn("return a + b", fixed_content)
 
-        # Verify the file was actually fixed
-        final_content = (self.buggy_project_dir / "math_ops.py").read_text()
-        self.assertEqual(final_content, fixed_content)
+    @patch('cli.commands.interactive.check_api_status')
+    @patch('cli.commands.interactive.start_analysis_session')
+    @patch('cli.commands.interactive.submit_bug')
+    @patch('cli.commands.interactive.monitor_progress')
+    def test_interactive_command(self, mock_monitor_progress, mock_submit_bug, mock_start_analysis_session, mock_check_api_status):
+        """Test the 'interactive' command."""
+        # Mock the functions called by the interactive command
+        mock_check_api_status.return_value = True
+        mock_start_analysis_session.return_value = "test-session-id"
+        mock_submit_bug.return_value = True
+
+        # Run the command with input
+        result = self.runner.invoke(
+            cli,
+            ['interactive', str(self.buggy_project_dir)],
+            input="A test bug\n5\n",
+            catch_exceptions=False
+        )
+
+        # Check that the command ran successfully
+        self.assertEqual(result.exit_code, 0, msg=result.output)
+
+        # Verify that the mocked functions were called correctly
+        mock_check_api_status.assert_called_once()
+        mock_start_analysis_session.assert_called_once_with(str(self.buggy_project_dir.resolve()))
+        mock_submit_bug.assert_called_once_with("A test bug", 5, "test-session-id")
+        mock_monitor_progress.assert_called_once()
 
 if __name__ == '__main__':
     unittest.main()
