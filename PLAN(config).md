@@ -150,16 +150,14 @@ The testing strategy should include tests that run the system with different con
 
 ## 9. Implementation Checklist (Bound to FILEMAP)
 
-1.  Create the `config/defaults.toml` file with the appropriate keys and values. - COMPLETED (Functionality covered by `config/system_config.yaml`)
-2.  Create the `config/language_rules.toml` file. - COMPLETED (Functionality covered by `config/system_config.yaml`)
-3.  Create the `config/ignore.defaults` file. - COMPLETED
-4.  Create the `config/security.yaml` file. - COMPLETED (Functionality covered by `config/system_config.yaml`)
+1.  Define and implement a unified `system_config.yaml` to consolidate all configuration. - COMPLETED
+2.  Implement the logic in the relevant modules to read from this configuration file. - COMPLETED
 
 ## 10. Information-Gap Log (Do Not Invent)
 
 | ID | Topic | Where Needed (file/section) | README Evidence | Impact | Decision |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| GAP-024 | Exact configuration keys | `config/` | The exact keys and values for the configuration files are not fully specified. | High | UNSPECIFIED IN README — DO NOT INVENT. The implementation will need to define the specific keys based on the inferred requirements. |
+| GAP-024 | Exact configuration keys | `config/` | The exact keys and values for the configuration files are not fully specified. | High | RESOLVED. A comprehensive schema for `system_config.yaml` has been defined in section 4.1 of this document. |
 
 ## 11. Glossary (README-Only)
 

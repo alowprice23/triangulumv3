@@ -3,18 +3,9 @@ from unittest.mock import patch
 import networkx as nx
 from pathlib import Path
 
-from tooling.fuzz_runner import FuzzRunner
 from tooling.repair import RepairTool
 
 class TestEnhancedTooling(unittest.TestCase):
-
-    def test_fuzz_runner_placeholder(self):
-        """Test the placeholder FuzzRunner."""
-        runner = FuzzRunner(repo_root=Path("."))
-        result = runner.run_fuzz_test("file.py", "func")
-
-        self.assertEqual(result["status"], "success")
-        self.assertEqual(result["crashes_found"], 0)
 
     def test_repair_tool_ripple_analysis(self):
         """Test the ripple effect analysis of the RepairTool."""

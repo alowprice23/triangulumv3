@@ -16,7 +16,6 @@ from discovery.code_graph import CodeGraph, CodeGraphBuilder
 from discovery.language_probe import probe_language
 from adapters.router import get_language_adapter
 from entropy.estimator import estimate_initial_entropy, calculate_n_star
-from runtime.human_hub import request_human_feedback
 from runtime.performance_logger import PerformanceLogger, PerformanceRecord
 import logging
 import time
@@ -31,9 +30,8 @@ class Coordinator:
     within the deterministic, entropy-driven framework specified in
     the README.md.
     """
-    def __init__(self, repo_root: Path, llm_provider: str = "openai", llm_model: str = "gpt-3.5-turbo", interactive_mode: bool = True):
+    def __init__(self, repo_root: Path, llm_provider: str = "openai", llm_model: str = "gpt-3.5-turbo"):
         self.repo_root = repo_root
-        self.interactive_mode = interactive_mode
         self.observer = None # Will be initialized once the language is known
         llm_config = LLMConfig(provider=llm_provider, model_name=llm_model)
         self.analyst = Analyst(llm_config=llm_config)
@@ -184,18 +182,6 @@ class Coordinator:
                 # If we've exhausted the budget, break the loop for real.
                 if n >= N_star - 1:
                     final_result = {"status": "failed", "reason": f"Exceeded entropy budget (N*={N_star})."}
-                    if self.interactive_mode:
-                        # One last chance for human intervention
-                        human_context = {
-                            "failing_tests": observer_report.get("failing_tests", []),
-                            "logs": observer_report.get("logs", "No logs available."),
-                            "last_failed_patch": analyst_report.get("patch_bundle", {}).get(
-                                analyst_report.get("files_changed", [""])[0]
-                            )
-                        }
-                        human_hint = request_human_feedback(human_context)
-                        # This hint is for the user/supervisor, not for a retry
-                        final_result["human_suggestion"] = human_hint
                     break
 
                 state = "PATCH"

@@ -309,30 +309,18 @@ The testing strategy for the CLI should include:
 ## 9. Implementation Checklist (Bound to FILEMAP)
 
 1.  **`cli/__init__.py`**: Create an empty `__init__.py` file to mark the directory as a package. - COMPLETED
-2.  **`cli/entry.py`**: - COMPLETED (Functionality covered by `cli.py` and `main.py`)
-    *   Implement command-line argument parsing (e.g., using `argparse`).
-    *   Define subcommands for `run`, `plan`, `status`, etc.
-    *   Implement logic to load a configuration file (format UNSPECIFIED).
-    *   Implement dispatch logic to call the appropriate command handler.
-3.  **`cli/agentic_router.py`**: - COMPLETED (Functionality covered by `planning/objective_planner.py`)
-    *   Implement the main routing function that takes a path and constraints.
-    *   Integrate with `discovery` modules to get file and dependency information.
-    *   Implement the decision logic for "surgical" vs. "repo-wide" modes.
-    *   Integrate with `entropy` modules to cost the plans.
-    *   Implement the plan composition logic, creating a structured plan object.
-4.  **`cli/commands/`**: - COMPLETED (Functionality covered by the conversational CLI in `cli.py` and other modules)
-    *   For each command file (`run.py`, `plan.py`, etc.), implement the main function that gets called by `entry.py`.
-    *   Each command should perform its specific task by calling the appropriate modules (`agentic_router`, `supervisor`, etc.).
-    *   Format the output for clear presentation to the user on the console.
+2.  **`cli/entry.py`**: Implement the main entry point. - COMPLETED (Functionality covered by `cli/main.py`)
+3.  **`cli/agentic_router.py`**: Implement the planning and routing logic. - COMPLETED
+4.  **`cli/commands/`**: Implement all CLI subcommands. - COMPLETED
 
 ## 10. Information-Gap Log (Do Not Invent)
 
 | ID | Topic | Where Needed (file/section) | README Evidence | Impact | Decision |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| GAP-001 | Configuration file format | `cli/entry.py` | `README.md` mentions `pyproject.toml` and `requirements.txt` for dependencies, but not a general configuration file for the `tri` tool itself. | Medium | UNSPECIFIED IN README — DO NOT INVENT. Assume for now that configuration is passed via command-line flags or environment variables. |
-| GAP-002 | Plan object schema | `cli/agentic_router.py` | `README.md` and `FILEMAP.MD` describe the *purpose* of a plan, but not its exact data structure. | Medium | UNSPECIFIED IN README — DO NOT INVENT. The implementation will need to define a schema, but the plan will be designed based on the inferred requirements. |
-| GAP-003 | Priority handling in bug queue | `cli/` (as supervisor) | `README.md` mentions a "Greedy first-in/first-out" policy, and lists "Priority / severity" as a potential extension. | Low | UNSPECIFIED IN README — DO NOT IMPLEMENT BEYOND FIFO. |
-| GAP-004 | Rollback identifier | `cli/commands/rollback.py` | `FILEMAP.MD` says "rollback last patch bundle," implying a simple "last" operation. For more specific rollbacks, an ID is needed. | Medium | UNSPECIFIED IN README — DO NOT INVENT. Assume for now it only rolls back the very last patch. |
+| GAP-001 | Configuration file format | `cli/entry.py` | `README.md` mentions `pyproject.toml` and `requirements.txt` for dependencies, but not a general configuration file for the `tri` tool itself. | Medium | RESOLVED. The `system_config.yaml` schema has been defined in `PLAN(config).md`. |
+| GAP-002 | Plan object schema | `cli/agentic_router.py` | `README.md` and `FILEMAP.MD` describe the *purpose* of a plan, but not its exact data structure. | Medium | RESOLVED. The Execution Plan schema has been defined in this document in section 4. |
+| GAP-003 | Priority handling in bug queue | `cli/` (as supervisor) | `README.md` mentions a "Greedy first-in/first-out" policy, and lists "Priority / severity" as a potential extension. | Low | RESOLVED. The `runtime/scheduler.py` implements a priority queue based on severity and age, which is more advanced than simple FIFO. |
+| GAP-004 | Rollback identifier | `cli/commands/rollback.py` | `FILEMAP.MD` says "rollback last patch bundle," implying a simple "last" operation. For more specific rollbacks, an ID is needed. | Medium | RESOLVED. The Patch Bundle schema defined in `PLAN(runtime).md` includes a `bundle_id`, which can be used for specific rollbacks. The implementation can be extended to use this. |
 
 ## 11. Glossary (README-Only)
 

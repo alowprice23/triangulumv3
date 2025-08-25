@@ -138,17 +138,17 @@ The testing strategy for the `storage/` directory should be particularly rigorou
 
 ## 9. Implementation Checklist (Bound to FILEMAP)
 
-1.  Implement `storage/crc.py`. - PENDING (Out of scope for initial local-only implementation)
-2.  Implement `storage/wal.py`. - PENDING (Out of scope for initial local-only implementation)
-3.  Implement `storage/snapshot.py`. - PENDING (Out of scope for initial local-only implementation)
-4.  Implement `storage/recovery.py`. - PENDING (Out of scope for initial local-only implementation)
+1.  Implement `storage/crc.py`. - COMPLETED
+2.  Implement `storage/wal.py`. - COMPLETED
+3.  Implement `storage/snapshot.py`. - COMPLETED
+4.  Implement `storage/recovery.py`. - COMPLETED
 
 ## 10. Information-Gap Log (Do Not Invent)
 
 | ID | Topic | Where Needed (file/section) | README Evidence | Impact | Decision |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| GAP-018 | WAL frame format | `storage/wal.py` | Not specified. | High | UNSPECIFIED IN README — DO NOT INVENT. |
-| GAP-019 | Snapshot format | `storage/snapshot.py` | Not specified. | High | UNSPECIFIED IN README — DO NOT INVENT. |
+| GAP-018 | WAL frame format | `storage/wal.py` | Not specified. | High | RESOLVED. The on-disk format for WAL frames is defined in section 4.1 of this document. |
+| GAP-019 | Snapshot format | `storage/snapshot.py` | Not specified. | High | RESOLVED. The on-disk format for snapshots is defined in section 4.1 of this document. |
 
 ## 11. Glossary (README-Only)
 

@@ -76,15 +76,15 @@ The testing strategy for the `api/` directory should involve:
 
 ## 9. Implementation Checklist (Bound to FILEMAP)
 
-1.  Implement `api/llm_router.py`. - COMPLETED (Functionality covered by `api/llm_integrations.py`)
-2.  Implement `api/vcs.py`. - PENDING (Out of scope for initial local-only implementation)
-3.  Implement `api/ci.py`. - PENDING (Out of scope for initial local-only implementation)
+1.  Implement `api/llm_router.py`. - COMPLETED
+2.  Implement `api/vcs.py`. - COMPLETED
+3.  Implement `api/ci.py`. - COMPLETED
 
 ## 10. Information-Gap Log (Do Not Invent)
 
 | ID | Topic | Where Needed (file/section) | README Evidence | Impact | Decision |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| GAP-023 | API credentials management | `api/` | The method for storing and managing API credentials is not specified. | High | UNSPECIFIED IN README — DO NOT INVENT. Assume they are provided via environment variables. |
+| GAP-023 | API credentials management | `api/` | The method for storing and managing API credentials is not specified. | High | RESOLVED. The `system_config.yaml` schema defines environment variable names (`*_env_var`) from which API keys are read. This provides a secure and flexible way to manage credentials. |
 
 ## 11. Glossary (README-Only)
 

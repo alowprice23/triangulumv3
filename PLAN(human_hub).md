@@ -75,15 +75,16 @@ The testing strategy for the `human_hub/` should include:
 
 ## 9. Implementation Checklist (Bound to FILEMAP)
 
-1.  Implement the FastAPI server in `human_hub/server.py`. - COMPLETED (Functionality covered by `human_in_the_loop/review_hub.py`)
-2.  Define the API endpoints for creating, listing, and deciding on review items. - COMPLETED (Functionality covered by `human_in_the_loop/review_hub.py`)
-3.  Integrate with the `runtime/supervisor` to handle escalations and decisions. - COMPLETED (This integration is part of the `agent_coordinator`'s responsibilities)
+1.  Implement the backend review queue logic in `runtime/human_hub.py`. - COMPLETED
+2.  Implement the API endpoints in `api/main.py` to expose the hub's functionality. - COMPLETED
+3.  Integrate the hub with `runtime/supervisor.py` for escalations and decisions. - COMPLETED
+4.  Create a web-based UI (`api/templates/hitl.html`) for human interaction. - COMPLETED
 
 ## 10. Information-Gap Log (Do Not Invent)
 
 | ID | Topic | Where Needed (file/section) | README Evidence | Impact | Decision |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| GAP-022 | Review queue UI | `human_hub/` | The UI for the human review process is not specified. | Medium | UNSPECIFIED IN README — DO NOT INVENT. A simple CLI or basic HTML interface could be created. |
+| GAP-022 | Review queue UI | `human_hub/` | The UI for the human review process is not specified. | Medium | RESOLVED. A functional HTML+JS user interface has been implemented in `api/templates/hitl.html` and is served at the `/hitl` endpoint. |
 
 ## 11. Glossary (README-Only)
 

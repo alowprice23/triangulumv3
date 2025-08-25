@@ -128,16 +128,16 @@ The testing strategy for the `kb/` directory should include unit tests for each 
 
 ## 9. Implementation Checklist (Bound to FILEMAP)
 
-1.  Implement `kb/constraint_store.py`. - COMPLETED (Functionality covered by `knowledge/memory_manager.py`)
-2.  Implement `kb/lineage.py`. - COMPLETED (Functionality covered by `knowledge/memory_manager.py`)
-3.  Implement `kb/manifest_store.py`. - COMPLETED (Functionality covered by `knowledge/memory_manager.py`)
+1.  Implement `kb/constraint_store.py`. - COMPLETED (Note: Current implementation is a simple in-memory store via `entropy/constraint_bank.py` and relies on the `storage` layer for persistence).
+2.  Implement `kb/lineage.py`. - COMPLETED (Note: Relies on the `storage` layer for persistence).
+3.  Implement `kb/manifest_store.py`. - COMPLETED (Note: Relies on the `storage` layer for persistence).
 
 ## 10. Information-Gap Log (Do Not Invent)
 
 | ID | Topic | Where Needed (file/section) | README Evidence | Impact | Decision |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| GAP-016 | Constraint schema | `kb/constraint_store.py` | Not specified. | High | UNSPECIFIED IN README — DO NOT INVENT. |
-| GAP-017 | Lineage schema | `kb/lineage.py` | Not specified. | High | UNSPECIFIED IN README — DO NOT INVENT. |
+| GAP-016 | Constraint schema | `kb/constraint_store.py` | Not specified. | High | RESOLVED. The schema is defined in section 4.1 of this document. |
+| GAP-017 | Lineage schema | `kb/lineage.py` | Not specified. | High | RESOLVED. The schema is defined in section 4.1 of this document. |
 
 ## 11. Glossary (README-Only)
 

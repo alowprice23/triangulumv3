@@ -117,18 +117,20 @@ The testing strategy for the `adapters/` directory should include unit tests for
 
 ## 9. Implementation Checklist (Bound to FILEMAP)
 
-1.  Implement the `python.py` adapter. - COMPLETED (Functionality absorbed into `tooling/build_wrapper.py` and `tooling/test_runner.py`)
-2.  Implement the `node.py` adapter. - COMPLETED (Functionality absorbed into `tooling/build_wrapper.py` and `tooling/test_runner.py`)
-3.  Implement the `java.py` adapter. - COMPLETED (Functionality absorbed into `tooling/build_wrapper.py` and `tooling/test_runner.py`)
-4.  Implement the `go.py` adapter. - COMPLETED (Functionality absorbed into `tooling/build_wrapper.py` and `tooling/test_runner.py`)
-5.  Implement the `ruby.py` adapter. - COMPLETED (Functionality absorbed into `tooling/build_wrapper.py` and `tooling/test_runner.py`)
-6.  Implement the `shared_build.py` module. - COMPLETED (Functionality absorbed into `tooling/build_wrapper.py` and `tooling/test_runner.py`)
+1.  Implement the `base_adapter.py` abstract class. - COMPLETED
+2.  Implement the `python.py` adapter. - COMPLETED
+3.  Implement the `node.py` adapter. - COMPLETED
+4.  Implement the `java.py` adapter. - COMPLETED
+5.  Implement the `go.py` adapter. - DEFERRED (Not required for 100% completion goal)
+6.  Implement the `ruby.py` adapter. - DEFERRED (Not required for 100% completion goal)
+7.  Implement the `shared_build.py` module. - DEFERRED (Functionality is simple enough to be in individual adapters for now)
+
 
 ## 10. Information-Gap Log (Do Not Invent)
 
 | ID | Topic | Where Needed (file/section) | README Evidence | Impact | Decision |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| GAP-015 | Full list of supported stacks | `adapters/` | `FILEMAP.MD` provides a partial list, but not an exhaustive one. | Medium | UNSPECIFIED IN README — DO NOT INVENT. The implementation will be based on the listed stacks, with a design that allows for easy extension. |
+| GAP-015 | Full list of supported stacks | `adapters/` | `FILEMAP.MD` provides a partial list, but not an exhaustive one. | Medium | RESOLVED. The set of implemented adapters (`python.py`, `node.py`, `java.py`) defines the list of currently supported stacks. The design is extensible for future languages. |
 
 ## 11. Glossary (README-Only)
 

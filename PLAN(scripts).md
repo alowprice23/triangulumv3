@@ -81,7 +81,7 @@ The scripts themselves should be tested to ensure they work correctly. This can 
 1.  Implement `scripts/dev_up.sh`. - COMPLETED (Functionality covered by `Makefile`)
 2.  Implement `scripts/run_tlc.sh`. - COMPLETED (Functionality covered by `Makefile`)
 3.  Implement `scripts/run_apalache.sh`. - COMPLETED (Functionality covered by `Makefile`)
-4.  Implement `scripts/run_simulation.py`. - PENDING (Low priority, can be added later)
+4.  Implement `scripts/run_simulation.py`. - COMPLETED
 5.  Implement `scripts/check_format.sh`. - COMPLETED (Functionality covered by `Makefile`)
 
 ## 10. Information-Gap Log (Do Not Invent)

@@ -17,6 +17,13 @@ COPY . .
 # Set the PYTHONPATH to the root of the app so imports work correctly
 ENV PYTHONPATH="/app"
 
+# Define the entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Set the entrypoint
+ENTRYPOINT ["/entrypoint.sh"]
+
 # Make port 8000 available to the world outside this container
 EXPOSE 8000
 

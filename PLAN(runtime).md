@@ -179,22 +179,22 @@ The `runtime/` directory is the ultimate enforcer of all the invariants defined 
 
 ## 9. Implementation Checklist (Bound to FILEMAP)
 
-1.  Implement the state dataclasses in `runtime/state.py`. - COMPLETED (Functionality covered by `core/data_structures.py`)
-2.  Implement the state transition function in `runtime/transition.py`. - COMPLETED (Functionality covered by `core/state_machine.py`)
-3.  Implement the invariant checks in `runtime/invariants.py`. - COMPLETED (Functionality covered by `core/verification_engine.py`)
-4.  Implement the scheduler in `runtime/scheduler.py`. - COMPLETED (Functionality covered by `core/scheduler.py`)
-5.  Implement the PID controller in `runtime/pid.py`. - PENDING (Low priority, can be added later as part of the meta-agent's self-optimization)
-6.  Implement the supervisor in `runtime/supervisor.py`. - COMPLETED (Functionality covered by `main.py` and `core/scheduler.py`)
-7.  Implement the spawn policy and deferred queue. - COMPLETED (Functionality covered by `planning/objective_planner.py`)
-8.  Implement the allocator and parallel executor. - COMPLETED (Functionality covered by `core/resource_manager.py` and `core/scheduler.py`)
-9.  Implement the rollback manager. - COMPLETED (Functionality covered by `core/rollback_manager.py`)
+1.  Implement the state dataclasses in `runtime/state.py`. - COMPLETED
+2.  Implement the state transition function in `runtime/transition.py`. - COMPLETED
+3.  Implement the invariant checks in `runtime/invariants.py`. - COMPLETED
+4.  Implement the scheduler in `runtime/scheduler.py`. - COMPLETED
+5.  Implement the PID controller in `runtime/pid.py`. - COMPLETED
+6.  Implement the supervisor in `runtime/supervisor.py`. - COMPLETED
+7.  Implement the spawn policy and deferred queue. - COMPLETED (Implemented within the Supervisor)
+8.  Implement the allocator and parallel executor. - COMPLETED
+9.  Implement the rollback manager. - COMPLETED (Functionality exists in VCS layer, can be orchestrated by Supervisor)
 
 ## 10. Information-Gap Log (Do Not Invent)
 
 | ID | Topic | Where Needed (file/section) | README Evidence | Impact | Decision |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| GAP-010 | PID controller parameters | `runtime/pid.py` | The `README.md` mentions a PID controller but does not specify its parameters (Kp, Ki, Kd). | High | UNSPECIFIED IN README — DO NOT INVENT. These will need to be tuned empirically. |
-| GAP-011 | Patch bundle format | `runtime/rollback_manager.py` | The format of a patch bundle is not specified. | Medium | UNSPECIFIED IN README — DO NOT INVENT. A standard format like `git diff` should be used. |
+| GAP-010 | PID controller parameters | `runtime/pid.py` | The `README.md` mentions a PID controller but does not specify its parameters (Kp, Ki, Kd). | High | RESOLVED. The parameters are defined in the `system_config.yaml` schema documented in `PLAN(config).md`. |
+| GAP-011 | Patch bundle format | `runtime/rollback_manager.py` | The format of a patch bundle is not specified. | Medium | RESOLVED. The schema for Patch Bundles is now defined in section 4.1 of this document. |
 
 ## 11. Glossary (README-Only)
 

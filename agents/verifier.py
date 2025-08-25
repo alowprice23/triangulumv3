@@ -7,7 +7,6 @@ import subprocess
 
 import tooling.test_runner
 from tooling.repair import RepairTool
-from tooling.fuzz_runner import FuzzRunner
 from tooling.patch_bundle import apply_patch_bundle
 from security.scanner import scan_for_malicious_code
 from adapters.base_adapter import LanguageAdapter

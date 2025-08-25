@@ -199,14 +199,14 @@ The testing strategy for the `agents/` directory should involve:
 4.  Implement the `agents/verifier.py` agent. - COMPLETED
 5.  Implement the `agents/coordinator.py` to orchestrate the O→A→V cycle. - COMPLETED
 6.  Implement `agents/memory.py` for cross-case learning. - COMPLETED
-7.  Implement `agents/meta_tuner.py` for self-optimization. - COMPLETED (renamed to `meta_agent.py`)
+7.  Implement `agents/meta_agent.py` for self-optimization. - COMPLETED
 
 ## 10. Information-Gap Log (Do Not Invent)
 
 | ID | Topic | Where Needed (file/section) | README Evidence | Impact | Decision |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| GAP-012 | Agent artifact schemas | `agents/` | `README.md` describes the artifacts conceptually but not their data schemas. | High | UNSPECIFIED IN README — DO NOT INVENT. Schemas will need to be designed. |
-| GAP-013 | Stopping rules for coordinator | `agents/coordinator.py` | The `README.md` mentions "stopping rules" but does not specify them. | High | UNSPECIFIED IN README — DO NOT INVENT. Rules like a maximum number of cycles will need to be implemented. |
+| GAP-012 | Agent artifact schemas | `agents/` | `README.md` describes the artifacts conceptually but not their data schemas. | High | RESOLVED. Schemas are now defined in section 4.1 of this document. |
+| GAP-013 | Stopping rules for coordinator | `agents/coordinator.py` | The `README.md` mentions "stopping rules" but does not specify them. | High | RESOLVED. Stopping rules are implemented in the `runtime/supervisor.py` which can escalate a bug after repeated failures (e.g., to the HITL Hub), and also via the `max_iterations` constraint in the Execution Plan schema. |
 
 ## 11. Glossary (README-Only)
 

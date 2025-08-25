@@ -1,44 +1,88 @@
-from typing import Dict, Any
-import click
+"""
+The Human-in-the-Loop (HITL) Review Hub.
 
-def request_human_feedback(bug_context: Dict[str, Any]) -> str:
+This module manages the queue of items that require human review and intervention.
+When the autonomous system cannot resolve a bug or requires approval for a risky
+patch, the bug is escalated to this hub. This implementation provides an in-memory
+queue and is designed to be accessed via a web API.
+"""
+
+import threading
+from typing import List, Dict, Any, Optional
+
+class ReviewItem:
+    """Represents a single item in the review queue."""
+    def __init__(self, bug_id: str, patch_proposal: Dict[str, Any], reason: str):
+        self.bug_id = bug_id
+        self.patch_proposal = patch_proposal
+        self.reason = reason
+        self.status = "pending"  # pending, approved, rejected
+        self.decision = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "bug_id": self.bug_id,
+            "patch_proposal": self.patch_proposal,
+            "reason": self.reason,
+            "status": self.status,
+        }
+
+class HumanReviewHub:
     """
-    Presents the current bug-fixing context to the human user and
-    prompts for feedback or a hint.
-
-    Args:
-        bug_context: A dictionary containing information about the bug,
-                     such as the failing tests, logs, and last failed patch.
-
-    Returns:
-        A string containing the hint or suggestion from the user.
+    Manages the queue of review items and handles human decisions.
+    This is a simple in-memory implementation.
     """
-    click.echo("\n" + "="*50)
-    click.echo(click.style("      🤖 HUMAN INTERVENTION REQUIRED 🤖", fg="yellow", bold=True))
-    click.echo("="*50)
-    click.echo("The agent has been unable to fix the bug automatically and needs your guidance.")
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._reviews: Dict[str, ReviewItem] = {}
+        self._decision_callbacks = []
 
-    click.echo(click.style("\n--- Bug Summary ---", fg="cyan"))
-    failing_tests = bug_context.get("failing_tests", [])
-    if failing_tests:
-        click.echo(click.style("Failing Tests:", bold=True))
-        for test in failing_tests:
-            click.echo(f"  - {test}")
+    def add_review_item(self, bug_id: str, patch_proposal: Dict[str, Any], reason: str):
+        """Adds a new item to the review queue."""
+        with self._lock:
+            if bug_id in self._reviews:
+                return # Avoid duplicate entries
 
-    logs = bug_context.get("logs", "No logs available.")
-    click.echo(click.style("\nOriginal Error Log:", bold=True))
-    click.echo(click.style(logs, fg="red"))
+            item = ReviewItem(bug_id, patch_proposal, reason)
+            self._reviews[bug_id] = item
 
-    last_patch = bug_context.get("last_failed_patch")
-    if last_patch:
-        click.echo(click.style("\n--- Last Attempted Patch (failed) ---", fg="cyan"))
-        click.echo(last_patch)
+    def get_pending_reviews(self) -> List[Dict[str, Any]]:
+        """Returns a list of all items currently pending review."""
+        with self._lock:
+            return [
+                item.to_dict() for item in self._reviews.values()
+                if item.status == "pending"
+            ]
 
-    click.echo("\n" + "="*50)
-    click.echo(click.style("Please provide a hint for the next attempt.", fg="green"))
-    click.echo("Example: 'The error might be in how the 'total' is calculated. Check for off-by-one errors.'")
-    click.echo("You can also type 'skip' to let the agent try again without a hint, or 'quit' to abort.")
+    def make_decision(self, bug_id: str, decision: str) -> bool:
+        """
+        Records a human's decision on a review item.
+        'decision' can be 'approve' or 'reject'.
+        """
+        with self._lock:
+            item = self._reviews.get(bug_id)
+            if not item or item.status != "pending":
+                return False
 
-    hint = click.prompt(click.style("Your Hint", bold=True))
+            if decision == "approve":
+                item.status = "approved"
+            elif decision == "reject":
+                item.status = "rejected"
+            else:
+                return False # Invalid decision
 
-    return hint
+            item.decision = decision
+
+            # Notify any listeners (like the supervisor) about the decision
+            for callback in self._decision_callbacks:
+                callback(bug_id, decision)
+
+            return True
+
+    def subscribe_to_decisions(self, callback):
+        """Allows other components (like the supervisor) to be notified of decisions."""
+        self._decision_callbacks.append(callback)
+
+# A global instance of the hub to be shared across the application.
+# This is a simple approach for a single-process application.
+hub = HumanReviewHub()

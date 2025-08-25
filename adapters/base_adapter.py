@@ -10,6 +10,20 @@ class LanguageAdapter(ABC):
     """
 
     @abstractmethod
+    def map_source_to_test(self, source_file: str, all_tests: List[str]) -> str | None:
+        """
+        Finds the most likely test file corresponding to a given source file.
+
+        Args:
+            source_file: The path to the source file.
+            all_tests: A list of all test file paths in the repository.
+
+        Returns:
+            The path to the corresponding test file, or None if not found.
+        """
+        pass
+
+    @abstractmethod
     def get_test_command(self, test_targets: List[str]) -> str:
         """
         Generates the command to run a specific set of tests.

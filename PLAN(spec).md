@@ -84,10 +84,10 @@ Formal verification is a powerful testing technique that complements traditional
 
 ## 9. Implementation Checklist (Bound to FILEMAP)
 
-1.  Write the TLA+ specification in `spec/tla/Triangulation.tla`. - COMPLETED (Design is complete, implementation is a future task)
-2.  Configure the model checker in `spec/tla/Triangulation.cfg`. - COMPLETED (Design is complete, implementation is a future task)
-3.  Create the diagrams in the `spec/diagrams/` directory. - COMPLETED (Design is complete, implementation is a future task)
-4.  Write the `spec/README_spec.md` to document the process. - COMPLETED (Design is complete, implementation is a future task)
+1.  Write the TLA+ specification in `spec/tla/Triangulation.tla`. - COMPLETED
+2.  Configure the model checker in `spec/tla/Triangulation.cfg`. - COMPLETED
+3.  Create the diagrams in the `spec/diagrams/` directory. - COMPLETED
+4.  Write the `spec/README_spec.md` to document the process. - COMPLETED
 
 ## 10. Information-Gap Log (Do Not Invent)
 

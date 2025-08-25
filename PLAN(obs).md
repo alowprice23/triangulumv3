@@ -98,15 +98,16 @@ The testing strategy for the `obs/` directory should include:
 
 ## 9. Implementation Checklist (Bound to FILEMAP)
 
-1.  Implement `obs/logging.py` with structured JSON logging. - COMPLETED (Functionality covered by `monitoring/system_monitor.py` and a dedicated logging setup)
-2.  Implement `obs/metrics.py` with a Prometheus exporter. - COMPLETED (Functionality covered by `monitoring/system_monitor.py`)
-3.  Implement `obs/heartbeat.py`. - COMPLETED (Functionality covered by `monitoring/system_monitor.py`)
+1.  Implement structured JSON logging. - COMPLETED (Handled by the `logging_config.py`.)
+2.  Implement Prometheus metrics definitions in `runtime/metrics.py`. - COMPLETED
+3.  Implement a Prometheus metrics endpoint in `api/main.py`. - COMPLETED
+4.  Implement supervisor/agent heartbeats. - DEFERRED (The current supervisor model is single-process, making heartbeats less critical. This can be added if the architecture becomes distributed).
 
 ## 10. Information-Gap Log (Do Not Invent)
 
 | ID | Topic | Where Needed (file/section) | README Evidence | Impact | Decision |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| GAP-020 | Alerting mechanism | `obs/heartbeat.py` | `FILEMAP.MD` mentions "lag alerts," but the mechanism for sending these alerts (e.g., email, PagerDuty) is not specified. | Medium | UNSPECIFIED IN README — DO NOT INVENT. The implementation can start by simply logging the alerts. |
+| GAP-020 | Alerting mechanism | `obs/heartbeat.py` | `FILEMAP.MD` mentions "lag alerts," but the mechanism for sending these alerts is not specified. | Medium | RESOLVED. The system exposes metrics via Prometheus. A standard Prometheus/Alertmanager stack can be used to configure alerting rules based on these metrics, which is a more flexible and powerful solution than a built-in mechanism. |
 
 ## 11. Glossary (README-Only)
 

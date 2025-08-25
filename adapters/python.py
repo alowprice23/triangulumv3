@@ -161,11 +161,43 @@ class PythonAdapter(LanguageAdapter):
 
     def map_source_to_test(self, source_file: str, all_tests: List[str]) -> str | None:
         """
-        Maps a Python source file to its corresponding test file.
+        Maps a Python source file to its corresponding test file using a
+        multi-layered heuristic.
+
+        1.  Import-based matching: Looks for test files that import the source file.
+        2.  Name-based matching: Falls back to common naming conventions.
         """
-        source_path = Path(source_file)
-        test_file_name = f"test_{source_path.stem}.py"
-        for test_path in all_tests:
-            if Path(test_path).name == test_file_name:
-                return test_path
+        all_files_set = set(all_tests)
+        source_file_path = Path(source_file)
+
+        # 1. Import-based matching
+        for test_file in all_tests:
+            imports = _get_python_imports(Path(test_file))
+            for module_name in imports:
+                resolved_path = _resolve_python_import_to_path(module_name, all_files_set.union({source_file}), test_file)
+                if resolved_path and Path(resolved_path) == source_file_path:
+                    return test_file
+
+        # 2. Name-based matching (enhanced)
+        # e.g., 'src/app/main.py' -> 'tests/app/test_main.py'
+        # or 'app/main.py' -> 'tests/test_main.py'
+
+        # Case a: test_main.py
+        test_file_name = f"test_{source_file_path.stem}.py"
+
+        # Case b: main_test.py
+        test_file_name_alt = f"{source_file_path.stem}_test.py"
+
+        possible_test_names = {test_file_name, test_file_name_alt}
+
+        for test_path_str in all_tests:
+            test_path = Path(test_path_str)
+            if test_path.name in possible_test_names:
+                # Prioritize tests in a parallel directory structure
+                if source_file_path.parent.name == 'src' and 'tests' in str(test_path.parent):
+                    if source_file_path.parent.parent == test_path.parent.parent:
+                        return test_path_str
+                # Or just return the first name match found
+                return test_path_str
+
         return None

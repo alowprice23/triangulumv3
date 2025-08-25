@@ -16,3 +16,4 @@ prometheus-client
 ollama
 numpy
 docker
+z3-solver

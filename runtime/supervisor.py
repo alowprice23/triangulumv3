@@ -12,6 +12,7 @@ from storage.snapshot import SnapshotManager
 from storage.recovery import RecoveryManager
 from discovery.code_graph import CodeGraph
 import runtime.metrics as metrics
+from runtime.human_hub import hub as human_review_hub
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +48,22 @@ class Supervisor:
         # Configure executor
         self.max_concurrent_sessions = max_concurrent_sessions
         self.executor = ParallelExecutor(max_workers=self.max_concurrent_sessions, allocator=self.allocator)
+
+        # Subscribe to decisions from the HITL Hub
+        human_review_hub.subscribe_to_decisions(self._handle_human_decision)
+
+    def _handle_human_decision(self, bug_id: str, decision: str):
+        """Callback function to handle decisions made in the HITL hub."""
+        logger.info(f"Supervisor: Received human decision for bug {bug_id}: {decision}")
+        if decision == "approve":
+            # This is a simplified logic. A real implementation might need to
+            # re-queue the bug with the approved patch or a new hint.
+            logger.warning(f"Bug {bug_id} approved by human, but re-queuing logic is not fully implemented.")
+            metrics.BUGS_FIXED_FAILURE.labels(reason="human_approved_re-queue_not_implemented").inc()
+        elif decision == "reject":
+            # Mark the bug as a permanent failure.
+            metrics.BUGS_FIXED_FAILURE.labels(reason="human_rejected").inc()
+
 
     def _initialize_from_state(self, state: Dict[str, Any]):
         """Populates the runtime components from a recovered state dict."""
@@ -110,6 +127,17 @@ class Supervisor:
             else:
                 failure_reason = result.get("reason", "unknown")
                 metrics.BUGS_FIXED_FAILURE.labels(reason=failure_reason).inc()
+
+                # --- Escalation Logic ---
+                # If a bug fails, we might need to escalate it to the HITL Hub.
+                # A proper implementation would track the number of failures for each bug
+                # and escalate after a certain threshold (e.g., 3 failures).
+                # For now, we will add a placeholder for this logic.
+                if failure_reason == "max_cycles_reached": # Example condition
+                    logger.warning(f"Bug {bug_id} reached max cycles. Escalating for human review.")
+                    # In a real implementation, we would get the patch proposal from the 'result'
+                    patch_proposal = result.get("last_patch_proposal", {})
+                    human_review_hub.add_review_item(bug_id, patch_proposal, "Agent failed to find a fix after maximum cycles.")
 
             # Record duration
             try:

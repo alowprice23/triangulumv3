@@ -1,7 +1,9 @@
 import asyncio
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from pathlib import Path
 import threading
@@ -12,6 +14,7 @@ from typing import Dict, Any
 
 from runtime.supervisor import Supervisor
 from discovery.code_graph import CodeGraph, CodeGraphBuilder
+from runtime.human_hub import hub as human_review_hub
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +34,9 @@ class StatusResponse(BaseModel):
     is_running: bool
     queued_tickets: int
     active_sessions: int
+
+class DecisionRequest(BaseModel):
+    decision: str # "approve" or "reject"
 
 # --- Shared State ---
 # This dictionary will hold our single supervisor instance and the cache for code graphs.
@@ -142,6 +148,51 @@ def get_status():
         queued_tickets=len(supervisor.scheduler),
         active_sessions=supervisor.executor.get_active_session_count()
     )
+
+@app.get("/status", response_model=StatusResponse)
+def get_status():
+    """
+    Gets the current status of the supervisor.
+    """
+    supervisor = shared_state.get("supervisor")
+    if not supervisor:
+        raise HTTPException(status_code=503, detail="Supervisor not running.")
+
+    return StatusResponse(
+        is_running=supervisor.is_running,
+        queued_tickets=len(supervisor.scheduler),
+        active_sessions=supervisor.executor.get_active_session_count()
+    )
+
+
+# --- Human-in-the-Loop (HITL) Hub Endpoints ---
+
+@app.get("/reviews")
+def get_reviews():
+    """
+    Gets the list of items pending human review.
+    """
+    return human_review_hub.get_pending_reviews()
+
+@app.post("/reviews/{bug_id}/decision", status_code=200)
+def make_decision(bug_id: str, request: DecisionRequest):
+    """
+    Submits a human decision (approve/reject) for a review item.
+    """
+    success = human_review_hub.make_decision(bug_id, request.decision)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Review item for bug '{bug_id}' not found or already actioned.")
+    return {"message": f"Decision '{request.decision}' for bug '{bug_id}' recorded."}
+
+
+# --- Web UI Endpoints ---
+templates = Jinja2Templates(directory="api/templates")
+
+@app.get("/hitl", response_class=HTMLResponse)
+async def hitl_dashboard(request: Request):
+    """Serves the HTML page for the HITL Review Hub."""
+    return templates.TemplateResponse("hitl.html", {"request": request})
+
 
 @app.get("/")
 def read_root():

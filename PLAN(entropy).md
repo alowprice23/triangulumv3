@@ -125,17 +125,18 @@ The testing strategy for the `entropy` module should include:
 
 ## 9. Implementation Checklist (Bound to FILEMAP)
 
-1.  Implement `entropy/estimator.py` to calculate H₀ and estimate *g*. - COMPLETED (Functionality covered by `knowledge/entropy_analyzer.py`)
-2.  Implement `entropy/constraint_bank.py` to manage learned constraints. - COMPLETED (Functionality covered by `knowledge/memory_manager.py`)
-3.  Implement `entropy/plan_costing.py` to calculate N* and estimated time. - COMPLETED (Functionality covered by `knowledge/entropy_analyzer.py`)
-4.  Implement `entropy/explainer.py` to generate human-readable summaries. - COMPLETED (Functionality covered by `knowledge/entropy_analyzer.py`)
+1.  Implement `entropy/estimator.py` to calculate H₀ and estimate *g*. - COMPLETED
+2.  Implement `entropy/constraint_bank.py` to manage learned constraints. - COMPLETED (Note: Current implementation is a simple in-memory store).
+3.  Implement `entropy/plan_costing.py` to calculate N* and estimated time. - COMPLETED
+4.  Implement `entropy/explainer.py` to generate human-readable summaries. - COMPLETED
+5.  Implement `entropy/pnp_solver.py` to provide SAT-based bug location. - COMPLETED
 
 ## 10. Information-Gap Log (Do Not Invent)
 
 | ID | Topic | Where Needed (file/section) | README Evidence | Impact | Decision |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| GAP-008 | H₀ calculation method | `entropy/estimator.py` | `README.md` and `FILEMAP.MD` state that H₀ is estimated from the candidate set size, but the exact formula (e.g., how `M` is derived from the files) is not specified. | High | UNSPECIFIED IN README — DO NOT INVENT. The implementation will need to use a reasonable heuristic, such as `M = number_of_lines_in_scope`. |
-| GAP-009 | *g* estimation method | `entropy/estimator.py` | The method for estimating the information gain *g* per iteration is not detailed. | High | UNSPECIFIED IN README — DO NOT INVENT. A heuristic will be needed, for example, assuming *g* = 1 bit per failing test eliminated. |
+| GAP-008 | H₀ calculation method | `entropy/estimator.py` | `README.md` and `FILEMAP.MD` state that H₀ is estimated from the candidate set size, but the exact formula is not specified. | High | RESOLVED. A sophisticated heuristic based on lines of code and dependency graph connectivity is implemented in `entropy/estimator.py`. |
+| GAP-009 | *g* estimation method | `entropy/estimator.py` | The method for estimating the information gain *g* per iteration is not detailed. | High | RESOLVED. A method for estimating *g* based on patch difference is implemented in `entropy/estimator.py`. |
 
 ## 11. Glossary (README-Only)
 

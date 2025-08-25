@@ -232,23 +232,23 @@ The testing strategy should cover:
 
 ## 9. Implementation Checklist (Bound to FILEMAP)
 
-1.  Implement `repo_scanner.py` with `.gitignore` support. - COMPLETED (Functionality covered by `knowledge/project_scanner.py`)
-2.  Implement `language_probe.py` for common languages. - COMPLETED (Functionality covered by `knowledge/project_scanner.py`)
-3.  Implement `build_systems.py` for common build tools. - COMPLETED (Functionality covered by `knowledge/project_scanner.py`)
-4.  Implement `test_locator.py`. - COMPLETED (Functionality covered by `knowledge/project_scanner.py`)
-5.  Implement `symbol_index.py` using language-specific parsers. - COMPLETED (Functionality covered by `knowledge/project_scanner.py`)
-6.  Implement `dep_graph.py` using `networkx`. - COMPLETED (Functionality covered by `knowledge/project_scanner.py`)
-7.  Implement `family_tree.py` for graph traversal. - COMPLETED (Functionality covered by `knowledge/project_scanner.py`)
-8.  Implement `scope_proposals.py` to synthesize the analysis. - COMPLETED (Functionality covered by `planning/objective_planner.py`)
-9.  Implement `manifest.py` to generate the final JSON output. - COMPLETED (Functionality covered by `knowledge/project_scanner.py`)
+1.  Implement `repo_scanner.py` with `.gitignore` support. - COMPLETED
+2.  Implement `language_probe.py` for common languages. - COMPLETED
+3.  Implement `build_systems.py` for common build tools. - COMPLETED
+4.  Implement `test_locator.py`. - COMPLETED
+5.  Implement `symbol_index.py` using language-specific parsers. - COMPLETED (Note: `dep_graph.py` was implemented in `code_graph.py`)
+6.  Implement `dep_graph.py` using `networkx`. - COMPLETED (Implemented in `code_graph.py`)
+7.  Implement `family_tree.py` for graph traversal. - COMPLETED
+8.  Implement `scope_proposals.py` to synthesize the analysis. - COMPLETED
+9.  Implement `manifest.py` to generate the final JSON output. - COMPLETED
 
 ## 10. Information-Gap Log (Do Not Invent)
 
 | ID | Topic | Where Needed (file/section) | README Evidence | Impact | Decision |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| GAP-005 | List of supported languages | `discovery/language_probe.py` | `FILEMAP.MD` lists "Python/Node/Java/etc.", which is not exhaustive. | Medium | UNSPECIFIED IN README — DO NOT INVENT. The implementation should support a reasonable set of common languages and handle unknown languages gracefully. |
-| GAP-006 | Test-to-source mapping logic | `discovery/test_locator.py` | `FILEMAP.MD` says it "map[s] them to modules," but the logic for this mapping is not specified. | High | UNSPECIFIED IN README — DO NOT INVENT. The implementation will need to use heuristics (e.g., file naming conventions, import analysis) to perform this mapping. |
-| GAP-007 | Symbol index schema | `discovery/symbol_index.py` | The schema for the symbol index is not defined. | Medium | UNSPECIFIED IN README — DO NOT INVENT. A suitable schema will need to be designed. |
+| GAP-005 | List of supported languages | `discovery/language_probe.py` | `FILEMAP.MD` lists "Python/Node/Java/etc.", which is not exhaustive. | Medium | RESOLVED. The `language_probe.py` module contains a comprehensive list of file extensions, and the system now has fully implemented adapters for Python, Node.js (JS/TS), and Java. |
+| GAP-006 | Test-to-source mapping logic | `discovery/test_locator.py` | `FILEMAP.MD` says it "map[s] them to modules," but the logic for this mapping is not specified. | High | RESOLVED. The `test_locator.py` now delegates to language-specific adapters. The `PythonAdapter` has a robust implementation based on import analysis, and the other adapters have functional heuristics. |
+| GAP-007 | Symbol index schema | `discovery/symbol_index.py` | The schema for the symbol index is not defined. | Medium | RESOLVED. The schema for the Symbol Index is now defined in section 4.1 of this document. |
 
 ## 11. Glossary (README-Only)
 

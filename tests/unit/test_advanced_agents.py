@@ -50,8 +50,7 @@ class TestAdvancedAgents(unittest.TestCase):
 
     def test_coordinator_uses_kb_and_tuner_on_success(self):
         """Test that the Coordinator calls the KB and tuner on a successful run."""
-        with patch('agents.coordinator.request_human_feedback'), \
-             patch('agents.coordinator.Observer') as mock_observer_class, \
+        with patch('agents.coordinator.Observer') as mock_observer_class, \
              patch('agents.coordinator.Analyst') as mock_analyst_class, \
              patch('agents.coordinator.PatchMotifLibrary') as mock_kb_class, \
              patch('agents.meta_agent.MetaAgent') as mock_meta_agent_class, \
@@ -86,13 +85,11 @@ class TestAdvancedAgents(unittest.TestCase):
 
     def test_verifier_rejects_malicious_patch(self):
         """Test that a malicious patch from the Analyst is caught and rejected."""
-        with patch('agents.coordinator.request_human_feedback') as mock_request_human_feedback, \
-             patch('discovery.repo_scanner.RepoScanner') as mock_repo_scanner_class, \
+        with patch('discovery.repo_scanner.RepoScanner') as mock_repo_scanner_class, \
              patch('agents.coordinator.Observer') as mock_observer_class, \
              patch('agents.coordinator.Analyst') as mock_analyst_class, \
              patch('agents.coordinator.LLMConfig') as mock_llm_config_class:
 
-            mock_request_human_feedback.return_value = "user hint"
             mock_repo_scanner_instance = mock_repo_scanner_class.return_value
             mock_repo_scanner_instance.scan.return_value = [{"path": "file.py"}]
             mock_observer_instance = mock_observer_class.return_value

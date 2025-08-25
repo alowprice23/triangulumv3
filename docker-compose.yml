@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  app:
+    container_name: triangulum-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount the entire project directory into the container.
+      # This allows for live-reloading during development.
+      - .:/app
+    environment:
+      # Pass environment variables from a .env file on the host.
+      # This is how secrets like API keys should be managed.
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}

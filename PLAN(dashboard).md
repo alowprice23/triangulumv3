@@ -81,15 +81,15 @@ The testing strategy for the `dashboard/` directory should include:
 
 ## 9. Implementation Checklist (Bound to FILEMAP)
 
-1.  Set up the FastAPI application in `dashboard/server.py`. - COMPLETED (Functionality covered by `monitoring/dashboard_stub.py`)
-2.  Implement the SSE endpoint for streaming live data. - COMPLETED (Functionality covered by `monitoring/dashboard_stub.py`)
-3.  Create the HTML templates with HTMX in `dashboard/pages.py`. - COMPLETED (Functionality covered by `monitoring/dashboard_stub.py`)
+1.  Implement a Prometheus metrics endpoint in the main FastAPI application. - COMPLETED
+2.  Configure Prometheus to scrape the application. - COMPLETED
+3.  Create a Grafana dashboard definition (`monitoring/grafana_dashboard.json`) to visualize the metrics. - COMPLETED
 
 ## 10. Information-Gap Log (Do Not Invent)
 
 | ID | Topic | Where Needed (file/section) | README Evidence | Impact | Decision |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| GAP-021 | Dashboard UI design | `dashboard/pages.py` | The exact design and layout of the dashboard are not specified. | Low | UNSPECIFIED IN README — DO NOT INVENT. A simple, clean design will be used. |
+| GAP-021 | Dashboard UI design | `dashboard/pages.py` | The exact design and layout of the dashboard are not specified. | Low | RESOLVED. A complete Grafana dashboard has been defined in `monitoring/grafana_dashboard.json`, which provides a rich and standard UI for metrics visualization. |
 
 ## 11. Glossary (README-Only)
 
