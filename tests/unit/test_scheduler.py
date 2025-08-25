@@ -1,11 +1,16 @@
 import time
 import pytest
 from unittest.mock import patch
+from pathlib import Path
+import tempfile
+import shutil
 from runtime.scheduler import Scheduler, BugTicket, calculate_priority
 
 @pytest.fixture
 def scheduler():
-    return Scheduler()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        storage_dir = Path(tmpdir)
+        yield Scheduler(storage_dir)
 
 def test_scheduler_submit_and_get(scheduler):
     """Test submitting a ticket and getting it back."""
