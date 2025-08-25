@@ -124,6 +124,31 @@ The `runtime/` directory is the tireless engine of the Triangulum system, ensuri
 *   **Patch Bundle:**
     *   A data package containing a code patch. The exact format is UNSPECIFIED IN README.
 
+### 4.1. Patch Bundle Schema (New)
+
+To address `GAP-011`, the following JSON-based schema is defined for patch bundles. This format is used to encapsulate a proposed code change, along with the necessary metadata for its application and verification.
+
+```json
+{
+  "bundle_type": "patch_bundle",
+  "version": "1.0",
+  "metadata": {
+    "bundle_id": "<A unique identifier for this bundle, e.g., a UUID>",
+    "created_by": "<ID of the agent that created the bundle>",
+    "timestamp": "YYYY-MM-DDTHH:MM:SSZ",
+    "target_commit_hash": "<The commit hash the patch must be applied to>",
+    "description": "<A brief, human-readable description of the patch's intent>"
+  },
+  "patch": {
+    "format": "unified_diff",
+    "content": "<The full 'git diff' content of the change>",
+    "apply_command": "git apply --check <patch_file>",
+    "revert_command": "git apply -R <patch_file>"
+  },
+  "signature": "<A hash (e.g., SHA-256) of the patch content to ensure integrity>"
+}
+```
+
 ## 5. Interfaces & Contracts (Cross-Referenced)
 
 *   `runtime.start_debugging(plan)`: Main entry point.

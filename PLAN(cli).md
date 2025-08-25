@@ -175,19 +175,34 @@ The `cli/` directory processes several types of data. The schemas for these are 
 
 *   **Execution Plan:**
     *   Produced by `cli/agentic_router.py`. This is a crucial data structure.
-    *   Schema (inferred):
+    *   **Schema (New):** To address `GAP-002`, the following schema is defined for the execution plan object that is passed from the CLI to the runtime.
+
         ```json
         {
-          "strategy": "string", // "surgical" or "repo-wide"
-          "target": "string", // The initial path provided by the user
-          "scope": {
-            "files": ["string"], // List of files in the debugging scope
-            "tests": ["string"]  // List of tests to run
+          "plan_type": "execution_plan",
+          "version": "1.0",
+          "plan_id": "<Unique ID for this plan, e.g., a UUID>",
+          "metadata": {
+            "created_by": "cli/agentic_router",
+            "timestamp": "YYYY-MM-DDTHH:MM:SSZ"
           },
-          "entropy_H0": "float", // Initial entropy estimate
-          "constraints": { // UNSPECIFIED IN README
-            "time_budget_seconds": "int",
-            "max_cycles": "int"
+          "strategy": {
+            "name": "surgical" | "repo-wide",
+            "description": "<Description of the chosen strategy>"
+          },
+          "scope": {
+            "target_files": ["<List of files to be analyzed or patched>"],
+            "test_files": ["<List of test files to be run>"],
+            "excluded_files": ["<List of files explicitly excluded from the scope>"]
+          },
+          "constraints": {
+            "max_iterations": "<Maximum number of O-A-V cycles>",
+            "time_budget_seconds": "<Total time budget for the run>",
+            "max_patches": "<Maximum number of patches to attempt>"
+          },
+          "entropy": {
+            "initial_H0": "<Initial entropy estimate for the scope>",
+            "estimated_g": "<Estimated information gain per iteration>"
           }
         }
         ```

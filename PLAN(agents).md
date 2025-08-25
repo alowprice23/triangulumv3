@@ -99,6 +99,76 @@ The control flow within the `agents/` directory is managed by the `agents/coordi
     *   **Verifier:** "Green CI result + merge request."
     The exact schemas for these artifacts are **UNSPECIFIED IN README**.
 
+### 4.1. Agent Artifact Schemas (New)
+
+To address the information gap `GAP-012`, the following JSON-based schemas are defined for the artifacts passed between agents. These schemas provide a structured and versioned format for inter-agent communication.
+
+*   **Observer Artifact Schema:** This artifact contains everything needed to reproduce the bug.
+
+    ```json
+    {
+      "artifact_type": "observer_output",
+      "version": "1.0",
+      "reproduction": {
+        "repro_script": {
+          "language": "bash",
+          "content": "<script content to set up environment and run the test>"
+        },
+        "failing_test": {
+          "language": "python|javascript|java|etc.",
+          "filepath": "path/to/test_file.py",
+          "content": "<content of the failing test file>"
+        },
+        "logs": {
+          "stdout": "<stdout from the failing run>",
+          "stderr": "<stderr from the failing run>"
+        }
+      }
+    }
+    ```
+
+*   **Analyst Artifact Schema:** This artifact contains the proposed solution to the bug.
+
+    ```json
+    {
+      "artifact_type": "analyst_output",
+      "version": "1.0",
+      "analysis": {
+        "rationale": "<A detailed explanation of the root cause analysis and the reasoning behind the proposed patch>",
+        "patch_proposal": {
+          "format": "unified_diff",
+          "content": "<The proposed patch in diff format>"
+        }
+      }
+    }
+    ```
+
+*   **Verifier Artifact Schema:** This artifact contains the result of verifying the proposed patch.
+
+    ```json
+    {
+      "artifact_type": "verifier_output",
+      "version": "1.0",
+      "verification": {
+        "status": "success|failure|regression",
+        "ci_result": {
+          "url": "<URL to the CI run, if applicable>",
+          "summary": "<Summary of the CI results>"
+        },
+        "merge_request": {
+          "vcs": "github|gitlab|none",
+          "pr_url": "<URL to the created merge/pull request, if applicable>"
+        },
+        "regressions_found": [
+            {
+                "test_name": "<Name of the test that regressed>",
+                "details": "<Details about the regression>"
+            }
+        ]
+      }
+    }
+    ```
+
 ## 5. Interfaces & Contracts (Cross-Referenced)
 
 *   `agents.coordinator.resolve_bug(bug)`:

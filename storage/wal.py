@@ -32,6 +32,7 @@ class WriteAheadLog:
         """
         event = {
             "type": entry_type.value,
+            "timestamp_ns": time.time_ns(),
             "payload": payload,
         }
         data = json.dumps(event).encode("utf-8")

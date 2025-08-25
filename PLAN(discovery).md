@@ -129,7 +129,40 @@ This flow from raw file system to structured, actionable scope proposals is the 
 
 ## 4. Data Flow & Schemas (README-derived)
 
-The `discovery/` directory produces a key data artifact: the **manifest**.
+The `discovery/` directory produces two key data artifacts: the **symbol index** and the **manifest**.
+
+*   **Symbol Index Schema (New):** To address `GAP-007`, the following schema is defined for the symbol index, which is the foundation for building the dependency graph.
+
+    ```json
+    {
+      "index_type": "symbol_index",
+      "version": "1.0",
+      "metadata": {
+        "project_root": "/path/to/project",
+        "index_timestamp": "YYYY-MM-DDTHH:MM:SSZ"
+      },
+      "files": {
+        "path/to/file1.py": {
+          "language": "python",
+          "symbols": [
+            {
+              "name": "MyClass",
+              "type": "class",
+              "start_line": 10,
+              "end_line": 25
+            }
+          ],
+          "imports": [
+            { "module": "os", "line": 1 },
+            { "module": "project.utils", "symbols": ["helper_function"], "line": 2 }
+          ],
+          "calls": [
+            { "callee": "helper_function", "line": 30 }
+          ]
+        }
+      }
+    }
+    ```
 
 *   **Manifest Schema (inferred from `FILEMAP.MD`):**
     ```json

@@ -56,6 +56,82 @@ The configuration files in this directory are read by various components at star
 
 The files in this directory are the source of configuration data for the entire system. Their schemas are defined by the structure of the TOML and YAML files themselves.
 
+### 4.1 Unified Configuration Schema (New)
+
+To address `GAP-024` and provide a centralized configuration, the system will use a single `config/system_config.yaml` file. This file consolidates the settings previously scattered across multiple files. This new schema also addresses `GAP-023` (API Credentials) and `GAP-010` (PID Parameters).
+
+*   **`config/system_config.yaml` Schema:**
+
+    ```yaml
+    # Triangulum v3 System Configuration
+    version: 1.0
+
+    # General system-wide settings
+    system:
+      safe_mode: true # A global toggle to run in a restricted, safe mode.
+      log_level: "INFO" # Default logging level: DEBUG, INFO, WARNING, ERROR
+
+    # Runtime settings, including PID controller and agent pool management
+    runtime:
+      pid_controller:
+        # Proportional, Integral, Derivative gains for the agent utilization controller
+        # These values will need to be tuned empirically.
+        kp: 0.1
+        ki: 0.01
+        kd: 0.05
+        # Target agent utilization (e.g., 0.8 means 80% of agents should be busy)
+        target_utilization: 0.8
+        # Anti-windup limit for the integral term
+        anti_windup_limit: 1.0
+      agent_pool:
+        # Maximum number of concurrent agents (must be a multiple of 3)
+        capacity: 9
+
+    # Discovery settings for scanning and analyzing projects
+    discovery:
+      # Default ignore patterns, similar to .gitignore
+      ignore_patterns:
+        - "**/node_modules"
+        - "**/__pycache__"
+        - "**/*.log"
+        - "**/build"
+        - "**/dist"
+      # Language-specific rules for discovery
+      language_rules:
+        python:
+          test_patterns: ["test_*.py", "*_test.py"]
+          build_files: ["requirements.txt", "pyproject.toml"]
+        javascript:
+          test_patterns: ["*.test.js", "*.spec.js", "*.test.ts", "*.spec.ts"]
+          build_files: ["package.json"]
+        java:
+          test_patterns: ["*Test.java"]
+          build_files: ["pom.xml", "build.gradle"]
+
+    # Security settings for sandboxing and API key management
+    security:
+      # Filesystem access rules for the sandbox
+      sandbox:
+        # List of allowed paths (glob patterns) that the agent can read/write to.
+        # Defaulting to only allow relative paths within the project.
+        allowed_paths:
+          - "./**"
+        # List of forbidden paths.
+        denied_paths:
+          - "/etc/**"
+          - "~/**"
+      # This section defines HOW to get the keys, not the keys themselves.
+      # The actual keys should be stored in environment variables for security.
+      api_credentials:
+        openai:
+          # The name of the environment variable that holds the API key.
+          api_key_env_var: "OPENAI_API_KEY"
+        anthropic:
+          api_key_env_var: "ANTHROPIC_API_KEY"
+        github:
+          token_env_var: "GITHUB_TOKEN"
+    ```
+
 ## 5. Interfaces & Contracts (Cross-Referenced)
 
 The `config/` directory does not have a programmatic interface. It is a data source for other modules.

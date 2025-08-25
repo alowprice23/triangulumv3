@@ -75,6 +75,45 @@ The `storage/` directory provides the foundational persistence layer for the Tri
 *   **WAL Frame Schema:** **UNSPECIFIED IN README**.
 *   **Snapshot Schema:** **UNSPECIFIED IN README**.
 
+### 4.1. On-Disk Formats (New)
+
+To address `GAP-018` and `GAP-019`, the following on-disk formats are defined.
+
+*   **WAL Frame Format (Binary):** The Write-Ahead Log is a sequence of binary frames. This format is designed for efficiency and integrity. Each frame has the following structure:
+
+    *   `CRC32 (4 bytes)`: A CRC32 checksum of the `Length` and `Data` fields to detect corruption.
+    *   `Length (4 bytes)`: The length of the `Data` payload in bytes, stored as a little-endian unsigned integer.
+    *   `Data (variable length)`: The actual data payload, which is a serialized representation of a single state change event (e.g., a new constraint, a state transition). The serialization format will be JSON for simplicity and debuggability.
+
+*   **Snapshot Format (JSON):** Snapshots contain a full dump of the system's state at a point in time. They are stored as compressed JSON files (`.json.gz`).
+
+    ```json
+    {
+      "snapshot_type": "triangulum_state_snapshot",
+      "version": "1.0",
+      "metadata": {
+        "snapshot_id": "<Unique ID for the snapshot, e.g., a timestamp or UUID>",
+        "timestamp": "YYYY-MM-DDTHH:MM:SSZ",
+        "last_wal_sequence_number": "<The sequence number of the last WAL entry included in this snapshot>"
+      },
+      "state_data": {
+        "runtime_state": {
+            "bug_queue": [],
+            "active_triangles": {},
+            "pid_state": {}
+        },
+        "knowledge_base": {
+            "constraints": [],
+            "lineage_graph": {}
+        },
+        "agent_pool": {
+            "agents": []
+        }
+      },
+      "signature": "<A SHA-256 hash of the state_data block to ensure integrity>"
+    }
+    ```
+
 ## 5. Interfaces & Contracts (Cross-Referenced)
 
 *   `storage.wal.append(frame)`

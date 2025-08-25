@@ -37,8 +37,8 @@ class RecoveryManager:
         logger.info("RecoveryManager: Replaying events from Write-Ahead Log...")
         events_replayed = 0
         for event in self._wal.read_events():
-            # The bug_id is a timestamp we can use for ordering
-            event_timestamp = self._get_event_timestamp(event)
+            # The WAL event now has a 'timestamp_ns' field at the top level.
+            event_timestamp = event.get("timestamp_ns", 0)
 
             if event_timestamp > last_event_timestamp:
                 self._apply_event(state, event)
@@ -46,17 +46,6 @@ class RecoveryManager:
 
         logger.info(f"RecoveryManager: Replayed {events_replayed} events. Recovery complete.")
         return state
-
-    def _get_event_timestamp(self, event: Dict[str, Any]) -> int:
-        """
-        Extracts a timestamp from a log event to ensure ordering.
-        Returns 0 if the bug_id is not a valid timestamp.
-        """
-        try:
-            # We'll use the bug_id, which is a timestamp, as the event's timestamp.
-            return int(float(event["payload"]["bug_id"]))
-        except (ValueError, KeyError):
-            return 0
 
     def _apply_event(self, state: Dict[str, Any], event: Dict[str, Any]):
         """Applies a single log event to modify the current state."""

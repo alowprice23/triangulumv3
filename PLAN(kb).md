@@ -65,6 +65,49 @@ The `kb/` modules are called by other parts of the system whenever new knowledge
 *   **Lineage Schema:** **UNSPECIFIED IN README**.
 *   **Manifest Schema:** Defined in `PLAN(discovery).md`.
 
+### 4.1. Knowledge Base Schemas (New)
+
+To address `GAP-016` and `GAP-017`, the following JSON-based schemas are defined for the core knowledge base objects.
+
+*   **Learned Constraint Schema:** This object represents a piece of knowledge that reduces the problem's search space.
+
+    ```json
+    {
+      "constraint_type": "learned_constraint",
+      "version": "1.0",
+      "constraint_id": "<Unique ID for the constraint, e.g., a hash of the data>",
+      "source": {
+        "type": "observer_run" | "analyst_deduction",
+        "bug_id": "<ID of the bug that produced this constraint>",
+        "agent_id": "<ID of the agent that learned this>"
+      },
+      "timestamp": "YYYY-MM-DDTHH:MM:SSZ",
+      "ttl_seconds": "<Time-to-live for this constraint, e.g., 86400>",
+      "constraint_data": {
+        "type": "stack_trace_hash" | "failed_assertion" | "symbol_exclusion",
+        "value": "<The actual constraint value, e.g., a SHA-256 hash of a stack trace>",
+        "description": "<Human-readable description of the constraint>"
+      },
+      "entropy_reduction_bits": "<Estimated reduction in entropy (delta H) provided by this constraint>"
+    }
+    ```
+
+*   **Bug Lineage Schema:** This object represents a single event in the life cycle of a bug, primarily for tracking the "fractal" spawning of new bugs from the resolution of others.
+
+    ```json
+    {
+      "lineage_record_type": "bug_lineage_event",
+      "version": "1.0",
+      "event_id": "<Unique ID for this lineage event, e.g., a UUID>",
+      "timestamp": "YYYY-MM-DDTHH:MM:SSZ",
+      "event_type": "spawn" | "resolve",
+      "parent_bug_id": "<ID of the parent bug>",
+      "child_bug_id": "<ID of the child bug, if event_type is 'spawn'>",
+      "resolution_patch_bundle_id": "<ID of the patch bundle that resolved the parent, leading to this event>",
+      "details": "<Human-readable details about the event, e.g., 'Fix for bug X revealed a null pointer exception in module Y'>"
+    }
+    ```
+
 ## 5. Interfaces & Contracts (Cross-Referenced)
 
 *   `kb.store_constraint(constraint)`
