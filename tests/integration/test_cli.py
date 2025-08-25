@@ -86,7 +86,8 @@ class TestCliIntegration(unittest.TestCase):
         # Verify Supervisor was instantiated correctly
         mock_supervisor_class.assert_called_once_with(
             max_concurrent_sessions=3,
-            repo_root=self.buggy_project_dir.resolve()
+            repo_root=self.buggy_project_dir.resolve(),
+            state_dir=self.buggy_project_dir.resolve() / ".triangulum_state"
         )
 
         # Verify submit_bug and run were called correctly

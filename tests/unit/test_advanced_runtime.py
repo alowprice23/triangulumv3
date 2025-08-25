@@ -1,6 +1,8 @@
 import unittest
 from unittest.mock import patch, MagicMock
 import time
+import tempfile
+from pathlib import Path
 
 from runtime.scheduler import Scheduler, BugTicket
 from runtime.pid import PIDController
@@ -22,13 +24,14 @@ class TestAdvancedRuntime(unittest.TestCase):
 
     def test_scheduler_priority(self, mock_recovery_manager):
         """Test that the scheduler correctly prioritizes tickets."""
-        scheduler = Scheduler()
-        ticket1 = BugTicket(bug_id="1", severity=1, description="low sev")
-        ticket2 = BugTicket(bug_id="2", severity=5, description="high sev")
-        scheduler.submit_ticket(ticket1)
-        scheduler.submit_ticket(ticket2)
-        next_ticket = scheduler.get_next_ticket()
-        self.assertEqual(next_ticket.bug_id, "2")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            scheduler = Scheduler(storage_dir=Path(tmpdir))
+            ticket1 = BugTicket(bug_id="1", severity=1, description="low sev")
+            ticket2 = BugTicket(bug_id="2", severity=5, description="high sev")
+            scheduler.submit_ticket(ticket1)
+            scheduler.submit_ticket(ticket2)
+            next_ticket = scheduler.get_next_ticket()
+            self.assertEqual(next_ticket.bug_id, "2")
 
     @patch('runtime.supervisor.ParallelExecutor')
     def test_supervisor_spawn_logic(self, mock_executor_class, mock_recovery_manager):
@@ -37,13 +40,14 @@ class TestAdvancedRuntime(unittest.TestCase):
         mock_executor_class.return_value = mock_executor_instance
         mock_recovery_manager.return_value.recover_state.return_value = {"scheduler_tickets": [], "active_sessions": {}}
 
-        supervisor = Supervisor()
-        supervisor.submit_bug("test bug", severity=3)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            supervisor = Supervisor(state_dir=Path(tmpdir))
+            supervisor.submit_bug("test bug", severity=3)
 
-        mock_executor_instance.get_active_session_count.return_value = 0
-        with patch.object(supervisor.pid_controller, 'update', return_value=0.5):
-            supervisor.tick()
-            mock_executor_instance.launch_session.assert_called_once()
+            mock_executor_instance.get_active_session_count.return_value = 0
+            with patch.object(supervisor.pid_controller, 'update', return_value=0.5):
+                supervisor.tick()
+                mock_executor_instance.launch_session.assert_called_once()
 
     @patch('runtime.supervisor.ParallelExecutor')
     def test_supervisor_no_spawn_logic(self, mock_executor_class, mock_recovery_manager):
@@ -52,13 +56,14 @@ class TestAdvancedRuntime(unittest.TestCase):
         mock_executor_class.return_value = mock_executor_instance
         mock_recovery_manager.return_value.recover_state.return_value = {"scheduler_tickets": [], "active_sessions": {}}
 
-        supervisor = Supervisor()
-        supervisor.submit_bug("test bug", severity=3)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            supervisor = Supervisor(state_dir=Path(tmpdir))
+            supervisor.submit_bug("test bug", severity=3)
 
-        mock_executor_instance.get_active_session_count.return_value = 0
-        with patch.object(supervisor.pid_controller, 'update', return_value=-0.5):
-            supervisor.tick()
-            mock_executor_instance.launch_session.assert_not_called()
+            mock_executor_instance.get_active_session_count.return_value = 0
+            with patch.object(supervisor.pid_controller, 'update', return_value=-0.5):
+                supervisor.tick()
+                mock_executor_instance.launch_session.assert_not_called()
 
 if __name__ == '__main__':
     unittest.main()

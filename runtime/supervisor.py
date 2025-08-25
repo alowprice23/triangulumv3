@@ -37,7 +37,7 @@ class Supervisor:
         initial_state = recovery_manager.recover_state()
 
         # Initialize components with recovered state
-        self.scheduler = Scheduler()
+        self.scheduler = Scheduler(state_dir)
         self.allocator = Allocator()
         self._initialize_from_state(initial_state)
 

@@ -13,10 +13,11 @@ def run(description: str, severity: int, duration: int, path: Path):
     Submits a bug to the runtime supervisor and starts its execution loop.
     """
     repo_root = path.resolve()
+    state_dir = repo_root / ".triangulum_state"
 
     # In a real application, the supervisor might be a long-running daemon.
     # Here, we instantiate and run it for a fixed duration.
-    supervisor = Supervisor(max_concurrent_sessions=3, repo_root=repo_root)
+    supervisor = Supervisor(max_concurrent_sessions=3, repo_root=repo_root, state_dir=state_dir)
 
     click.echo(f"Submitting bug to supervisor: '{description}'")
     supervisor.submit_bug(description, severity)
